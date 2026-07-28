@@ -20,11 +20,15 @@ def bundled_document() -> str:
 
 def run() -> None:
     with sync_playwright() as playwright:
-        browser = playwright.chromium.launch(
-            headless=True,
-            executable_path="/usr/bin/chromium",
-            args=["--no-sandbox", "--disable-dev-shm-usage"],
-        )
+        launch_options: dict[str, object] = {
+            "headless": True,
+            "args": ["--no-sandbox", "--disable-dev-shm-usage"],
+        }
+        system_chromium = Path("/usr/bin/chromium")
+        if system_chromium.exists():
+            launch_options["executable_path"] = str(system_chromium)
+
+        browser = playwright.chromium.launch(**launch_options)
         page = browser.new_page(viewport={"width": 1280, "height": 960})
         page.set_content(bundled_document(), wait_until="load")
 
