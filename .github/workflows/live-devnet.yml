@@ -1,0 +1,45 @@
+name: live-devnet-evidence
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/live-devnet.yml"
+      - "docs/devnet-provider-selection.md"
+      - "examples/resilience-manifest.json"
+      - "package.json"
+      - "scripts/live-devnet-evidence.mjs"
+      - "src/core/**"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  live-devnet:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: npm install --no-audit --no-fund
+      - run: python -m pip install -r requirements-dev.txt
+      - run: python -m playwright install --with-deps chromium
+      - run: npm run evidence:devnet
+        env:
+          SOLCONTINUITY_DEVNET_KEYPAIR: ${{ secrets.SOLCONTINUITY_DEVNET_KEYPAIR }}
+      - run: npm run test:e2e
+        if: always()
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: live-devnet-evidence
+          path: |
+            test-results/live-devnet-evidence.json
+            test-results/dashboard-proof.png
+            playwright-report/
+          if-no-files-found: warn

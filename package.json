@@ -22,7 +22,11 @@
     "start:analytics": "python -m uvicorn python.solcontinuity_analytics.app:app --host 127.0.0.1 --port 8001",
     "audit:example": "npm run build && node dist/src/cli/index.js audit examples/resilience-manifest.json",
     "health:example": "npm run build && node dist/src/cli/index.js health examples/resilience-manifest.json",
+    "evidence:devnet": "npm run build && node scripts/live-devnet-evidence.mjs examples/resilience-manifest.json",
     "verify": "npm run typecheck && npm run test && npm run test:e2e"
+  },
+  "dependencies": {
+    "@solana/web3.js": "1.98.4"
   },
   "devDependencies": {
     "@types/node": "22.15.30",

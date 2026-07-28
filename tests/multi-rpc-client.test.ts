@@ -107,3 +107,26 @@ test("quorum can require agreement across independent providers", async () => {
     await Promise.all(servers.map((server) => server.close()));
   }
 });
+
+test("transaction broadcast succeeds through one provider and preserves failed-route evidence", async () => {
+  const servers = await Promise.all([
+    createMockRpcServer("accepting", { methodResults: { sendTransaction: "devnet-signature" } }),
+    createMockRpcServer("blocked", { failHttp: 503 })
+  ]);
+
+  try {
+    const client = new MultiRpcClient({ endpoints: servers.map((server) => server.endpoint) });
+    const result = await client.broadcastTransaction("signed-transaction-base64", {
+      minimumAcceptances: 1,
+      minimumProviderAcceptances: 1
+    });
+
+    assert.equal(result.value, "devnet-signature");
+    assert.equal(result.evidence.agreementCount, 1);
+    assert.equal(result.evidence.providerAgreementCount, 1);
+    assert.equal(result.evidence.observations.length, 2);
+    assert.equal(result.evidence.observations.find((item) => item.endpointId === "blocked")?.ok, false);
+  } finally {
+    await Promise.all(servers.map((server) => server.close()));
+  }
+});
