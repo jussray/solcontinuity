@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="SolContinuity application-layer resilience console for Solana dApps" />
+  <title>SolContinuity</title>
+  <link rel="stylesheet" href="./styles.css" />
+</head>
+<body>
+  <main class="shell">
+    <header class="hero">
+      <div>
+        <p class="eyebrow">SOLANA APPLICATION-LAYER RESILIENCE</p>
+        <h1>SolContinuity</h1>
+        <p class="lede">Detect provider concentration, test failure paths, and publish evidence that a Solana dApp can recover.</p>
+      </div>
+      <div class="hero-status">
+        <span class="status-badge">Open-source technical starter · v0.1</span>
+        <span id="evidence-mode" class="status-badge neutral">Evidence mode: checking</span>
+      </div>
+    </header>
+
+    <section class="metrics" aria-label="Technical status">
+      <article><span>Core</span><strong>Multi-RPC</strong><small>Provider-aware quorum</small></article>
+      <article><span>API</span><strong id="api-status">Checking</strong><small>Node evidence boundary</small></article>
+      <article><span>Analytics</span><strong id="analytics-status">Checking</strong><small>Python scoring service</small></article>
+      <article><span>Verification</span><strong>Playwright</strong><small>Built browser path</small></article>
+    </section>
+
+    <nav class="tabs" aria-label="Dashboard sections">
+      <button type="button" data-tab="overview">Overview</button>
+      <button type="button" data-tab="audit">Audit lab</button>
+      <button type="button" data-tab="providers">Provider lab</button>
+      <button type="button" data-tab="architecture">Architecture</button>
+      <button type="button" data-tab="proof">Proof gates</button>
+    </nav>
+
+    <section class="panel" data-panel="overview">
+      <div class="section-title">
+        <div>
+          <h2>80/20 release</h2>
+          <p>One end-to-end resilience claim, implemented deeply.</p>
+        </div>
+        <button id="refresh-evidence" class="secondary" type="button">Refresh evidence</button>
+      </div>
+      <div class="grid two">
+        <article class="card"><h3>Read resilience</h3><p>Compare security-sensitive RPC responses and return only a configured quorum, preserving disagreement as evidence.</p></article>
+        <article class="card"><h3>Write resilience</h3><p>Broadcast signed transactions through multiple routes, then verify status independently at the requested commitment.</p></article>
+        <article class="card"><h3>Dependency resilience</h3><p>Audit whether recovery depends on one operator, frontend, API, indexer, or undocumented service.</p></article>
+        <article class="card"><h3>Evidence resilience</h3><p>Export machine-readable reports so the hosted console is not the only source of truth.</p></article>
+      </div>
+      <aside class="callout" id="overview-evidence"><strong>Evidence:</strong> Loading the current project boundary.</aside>
+    </section>
+
+    <section class="panel hidden" data-panel="audit">
+      <div class="section-title">
+        <div><h2>Manifest audit lab</h2><p>Edit the dependency shape and inspect the deterministic report.</p></div>
+        <button id="reset-manifest" class="secondary" type="button">Reset</button>
+      </div>
+      <div class="grid audit-grid">
+        <label class="editor-label" for="manifest-editor">Resilience manifest JSON</label>
+        <textarea id="manifest-editor" spellcheck="false"></textarea>
+        <button id="run-audit" type="button">Run audit</button>
+        <output id="audit-output" aria-live="polite"></output>
+      </div>
+    </section>
+
+    <section class="panel hidden" data-panel="providers">
+      <div class="section-title">
+        <div><h2>Provider evidence lab</h2><p>Score availability, operator diversity, latency, and response agreement.</p></div>
+        <span class="pill">Python when connected</span>
+      </div>
+      <div class="provider-grid" id="provider-samples" aria-label="Provider observations"></div>
+      <button id="run-provider-score" type="button">Score provider evidence</button>
+      <output id="provider-output" aria-live="polite"></output>
+      <aside class="callout"><strong>Truth boundary:</strong> A high score summarizes supplied observations. It does not prove an RPC operator is honest or that a dApp is uncensorable.</aside>
+    </section>
+
+    <section class="panel hidden" data-panel="architecture">
+      <h2>Focused architecture</h2>
+      <div class="flow" role="img" aria-label="A Solana dApp sends reads and signed transactions through the TypeScript resilience core and Node API, observations are scored by Python analytics, and evidence is shown in a self-hostable console.">
+        <div class="node"><strong>dApp</strong><span>Read or signed transaction</span></div>
+        <span class="arrow">→</span>
+        <div class="node accent"><strong>TypeScript core</strong><span>Quorum · failover · audit</span></div>
+        <span class="arrow">→</span>
+        <div class="node"><strong>Independent RPCs</strong><span>Operators A · B · C</span></div>
+        <span class="arrow">→</span>
+        <div class="node"><strong>Node + Python</strong><span>API · scoring · evidence</span></div>
+      </div>
+      <aside class="callout"><strong>Truth boundary:</strong> SolContinuity improves application-layer resilience. It does not alter Solana consensus or guarantee censorship can never occur.</aside>
+    </section>
+
+    <section class="panel hidden" data-panel="proof">
+      <h2>Proof before claim</h2>
+      <div class="proof-list">
+        <label><input type="checkbox" checked disabled /> TypeScript strict build</label>
+        <label><input type="checkbox" checked disabled /> Node API and core tests</label>
+        <label><input type="checkbox" checked disabled /> Python analytics tests</label>
+        <label><input type="checkbox" checked disabled /> Manifest risk tests</label>
+        <label><input type="checkbox" checked disabled /> Playwright console path</label>
+        <label><input type="checkbox" disabled /> Live Devnet multi-provider test</label>
+        <label><input type="checkbox" disabled /> External developer self-host test</label>
+      </div>
+      <aside class="callout"><strong>Next gate:</strong> replace placeholder provider URLs with approved independent endpoints, run Devnet evidence, and preserve the machine-readable report and browser artifact.</aside>
+    </section>
+
+    <p id="announcement" class="announcement" aria-live="polite"></p>
+  </main>
+  <script src="./app.js"></script>
+</body>
+</html>
