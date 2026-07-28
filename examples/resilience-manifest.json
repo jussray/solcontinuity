@@ -1,0 +1,55 @@
+{
+  "schemaVersion": "1.0",
+  "name": "ProofRail Devnet Reference",
+  "description": "Reference community-grant and milestone-payment dApp used to prove application-layer resilience patterns.",
+  "network": "devnet",
+  "sourceRepository": "https://github.com/jussray/solcontinuity",
+  "license": "Apache-2.0",
+  "programAddresses": [
+    "11111111111111111111111111111111"
+  ],
+  "rpcEndpoints": [
+    {
+      "id": "solana-public-devnet",
+      "provider": "Solana public RPC",
+      "url": "https://api.devnet.solana.com",
+      "timeoutMs": 4000
+    },
+    {
+      "id": "independent-provider-a",
+      "provider": "Independent Provider A",
+      "url": "https://rpc-a.example.org",
+      "timeoutMs": 4000
+    },
+    {
+      "id": "independent-provider-b",
+      "provider": "Independent Provider B",
+      "url": "https://rpc-b.example.org",
+      "timeoutMs": 4000
+    }
+  ],
+  "frontend": {
+    "primaryUrl": "https://app.example.org",
+    "recoveryUrl": "https://recovery.example.org",
+    "selfHostingGuide": "https://docs.example.org/self-host"
+  },
+  "dependencies": [
+    {
+      "name": "Grant evidence storage",
+      "kind": "storage",
+      "required": true,
+      "replacement": "Exportable content-addressed evidence bundle"
+    },
+    {
+      "name": "Optional search index",
+      "kind": "indexer",
+      "required": false,
+      "replacement": "Direct RPC account scans"
+    }
+  ],
+  "verification": {
+    "minimumRpcAgreement": 2,
+    "commitment": "confirmed",
+    "publishEvidence": true
+  }
+}
