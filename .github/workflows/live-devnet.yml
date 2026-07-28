@@ -4,6 +4,7 @@ on:
   pull_request:
     paths:
       - ".github/workflows/live-devnet.yml"
+      - "docs/devnet-provider-selection.md"
       - "examples/resilience-manifest.json"
       - "package.json"
       - "scripts/live-devnet-evidence.mjs"
@@ -16,7 +17,7 @@ permissions:
 jobs:
   live-devnet:
     runs-on: ubuntu-latest
-    timeout-minutes: 12
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -30,6 +31,7 @@ jobs:
       - run: python -m playwright install --with-deps chromium
       - run: npm run evidence:devnet
       - run: npm run test:e2e
+        if: always()
       - uses: actions/upload-artifact@v4
         if: always()
         with:
