@@ -288,7 +288,8 @@ try {
     );
   }
 
-  const latestBlockhash = await connection.getLatestBlockhash("confirmed");
+  const blockhashCommitment = "finalized";
+  const latestBlockhash = await connection.getLatestBlockhash(blockhashCommitment);
   const memo = `SolContinuity live Devnet evidence ${evidence.generatedAt}`;
   const transaction = new Transaction({
     feePayer: payer.publicKey,
@@ -308,6 +309,7 @@ try {
     payer: payer.publicKey.toBase58(),
     memo,
     memoProgramId: MEMO_PROGRAM_ID.toBase58(),
+    blockhashCommitment,
     recentBlockhash: latestBlockhash.blockhash,
     lastValidBlockHeight: latestBlockhash.lastValidBlockHeight,
     transactionBase64,
