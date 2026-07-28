@@ -12,6 +12,7 @@ const manifestPath = resolve(process.cwd(), process.argv[2] ?? "examples/resilie
 const outputPath = resolve(process.cwd(), "test-results/live-devnet-evidence.json");
 const manifest = JSON.parse(await readFile(manifestPath, "utf8"));
 const client = new MultiRpcClient({ endpoints: manifest.rpcEndpoints, defaultTimeoutMs: 8_000 });
+const endpointById = new Map(manifest.rpcEndpoints.map((endpoint) => [endpoint.id, endpoint]));
 
 const evidence = {
   schemaVersion: "1.0",
@@ -21,31 +22,121 @@ const evidence = {
   providerSelection: manifest.rpcEndpoints.map(({ id, provider, url }) => ({ id, provider, url })),
   health: null,
   quorumRead: null,
+  funding: {
+    requestedLamports: 2_000_000,
+    payer: null,
+    attempts: [],
+    signature: null,
+    verification: null,
+    balanceLamports: null
+  },
   transaction: null,
   status: "running",
   error: null
 };
+
+function sleep(ms) {
+  return new Promise((resolveWait) => setTimeout(resolveWait, ms));
+}
+
+function errorDetails(error) {
+  return error instanceof Error
+    ? { name: error.name, message: error.message, stack: error.stack }
+    : { name: "UnknownError", message: String(error) };
+}
+
+function independentProviderCount(endpointIds) {
+  return new Set(
+    endpointIds
+      .map((endpointId) => endpointById.get(endpointId)?.provider?.trim().toLowerCase())
+      .filter(Boolean)
+  ).size;
+}
 
 async function persist() {
   await mkdir(resolve(process.cwd(), "test-results"), { recursive: true });
   await writeFile(outputPath, `${JSON.stringify(evidence, null, 2)}\n`, "utf8");
 }
 
-async function waitForProviderConfirmation(signature, minimumProviders, timeoutMs = 60_000) {
+async function waitForProviderConfirmation(signature, minimumProviders, timeoutMs = 90_000) {
   const startedAt = Date.now();
   let latest = null;
+  let providerAgreementCount = 0;
 
   while (Date.now() - startedAt < timeoutMs) {
     latest = await client.verifySignature(signature, "confirmed");
-    if (latest.confirmedBy.length >= minimumProviders) {
-      return latest;
+    providerAgreementCount = independentProviderCount(latest.confirmedBy);
+    if (providerAgreementCount >= minimumProviders) {
+      return { ...latest, providerAgreementCount };
     }
-    await new Promise((resolveWait) => setTimeout(resolveWait, 2_000));
+    await sleep(2_000);
   }
 
   throw new Error(
-    `Transaction ${signature} was not confirmed by ${minimumProviders} providers within ${timeoutMs}ms. Last observation: ${JSON.stringify(latest)}`
+    `Transaction ${signature} was not confirmed by ${minimumProviders} independent providers within ${timeoutMs}ms. Last observation: ${JSON.stringify({ latest, providerAgreementCount })}`
   );
+}
+
+async function requestAirdropWithRetries(publicKey, lamports) {
+  const backoffMs = [0, 1_500, 3_000, 6_000];
+
+  for (let roundIndex = 0; roundIndex < backoffMs.length; roundIndex += 1) {
+    if (backoffMs[roundIndex] > 0) {
+      await sleep(backoffMs[roundIndex]);
+    }
+
+    for (const endpoint of manifest.rpcEndpoints) {
+      const startedAt = Date.now();
+      const attempt = {
+        round: roundIndex + 1,
+        endpointId: endpoint.id,
+        provider: endpoint.provider,
+        requestedLamports: lamports,
+        requestAccepted: false,
+        independentlyConfirmed: false,
+        elapsedMs: null,
+        signature: null,
+        requestError: null,
+        confirmationError: null
+      };
+
+      try {
+        const connection = new Connection(endpoint.url, "confirmed");
+        attempt.signature = await connection.requestAirdrop(publicKey, lamports);
+        attempt.requestAccepted = true;
+        attempt.elapsedMs = Date.now() - startedAt;
+      } catch (error) {
+        attempt.elapsedMs = Date.now() - startedAt;
+        attempt.requestError = errorDetails(error);
+        evidence.funding.attempts.push(attempt);
+        await persist();
+        continue;
+      }
+
+      evidence.funding.attempts.push(attempt);
+      await persist();
+
+      try {
+        const verification = await waitForProviderConfirmation(attempt.signature, 2);
+        attempt.independentlyConfirmed = true;
+        evidence.funding.signature = attempt.signature;
+        evidence.funding.verification = verification;
+        await persist();
+        return {
+          signature: attempt.signature,
+          endpointId: endpoint.id,
+          provider: endpoint.provider,
+          endpointUrl: endpoint.url,
+          verification
+        };
+      } catch (error) {
+        attempt.confirmationError = errorDetails(error);
+        await persist();
+      }
+    }
+  }
+
+  throw new Error(`Unable to fund the ephemeral Devnet payer after ${backoffMs.length} provider rounds.`);
 }
 
 try {
@@ -64,16 +155,14 @@ try {
     minimumProviderAgreement: 2
   });
 
-  const fundingEndpoint = manifest.rpcEndpoints.find((endpoint) => endpoint.id === "solana-public-devnet");
-  if (!fundingEndpoint) {
-    throw new Error("The Solana public Devnet endpoint is required for the ephemeral faucet-funded transaction.");
-  }
-
-  const connection = new Connection(fundingEndpoint.url, "confirmed");
   const payer = Keypair.generate();
   const recipient = Keypair.generate();
-  const airdropSignature = await connection.requestAirdrop(payer.publicKey, 10_000_000);
-  await connection.confirmTransaction(airdropSignature, "confirmed");
+  evidence.funding.payer = payer.publicKey.toBase58();
+  await persist();
+
+  const funding = await requestAirdropWithRetries(payer.publicKey, evidence.funding.requestedLamports);
+  const connection = new Connection(funding.endpointUrl, "confirmed");
+  evidence.funding.balanceLamports = await connection.getBalance(payer.publicKey, "confirmed");
 
   const latestBlockhash = await connection.getLatestBlockhash("confirmed");
   const transaction = new Transaction({
@@ -87,20 +176,30 @@ try {
     })
   );
   transaction.sign(payer);
+  const transactionBase64 = transaction.serialize().toString("base64");
 
-  const broadcast = await client.broadcastTransaction(transaction.serialize().toString("base64"), {
+  const broadcast = await client.broadcastTransaction(transactionBase64, {
     skipPreflight: false,
     maxRetries: 3,
     minimumAcceptances: 1,
     minimumProviderAcceptances: 1
   });
+  const attemptedBroadcastProviders = new Set(
+    broadcast.evidence.observations.map((observation) => observation.provider.toLowerCase())
+  ).size;
+  if (attemptedBroadcastProviders < 2) {
+    throw new Error("The transaction was not attempted through at least two independent providers.");
+  }
+
   const verification = await waitForProviderConfirmation(broadcast.value, 2);
 
   evidence.transaction = {
     payer: payer.publicKey.toBase58(),
     recipient: recipient.publicKey.toBase58(),
     lamports: 1,
-    airdropSignature,
+    recentBlockhash: latestBlockhash.blockhash,
+    lastValidBlockHeight: latestBlockhash.lastValidBlockHeight,
+    transactionBase64,
     broadcast,
     verification
   };
@@ -109,7 +208,7 @@ try {
   console.log(JSON.stringify(evidence, null, 2));
 } catch (error) {
   evidence.status = "failed";
-  evidence.error = error instanceof Error ? { name: error.name, message: error.message, stack: error.stack } : String(error);
+  evidence.error = errorDetails(error);
   await persist();
   console.error(JSON.stringify(evidence, null, 2));
   process.exitCode = 1;
