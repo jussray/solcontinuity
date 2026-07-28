@@ -13,6 +13,7 @@ const outputPath = resolve(process.cwd(), "test-results/live-devnet-evidence.jso
 const manifest = JSON.parse(await readFile(manifestPath, "utf8"));
 const client = new MultiRpcClient({ endpoints: manifest.rpcEndpoints, defaultTimeoutMs: 8_000 });
 const endpointById = new Map(manifest.rpcEndpoints.map((endpoint) => [endpoint.id, endpoint]));
+const configuredKeypairJson = process.env.SOLCONTINUITY_DEVNET_KEYPAIR?.trim() ?? "";
 
 const evidence = {
   schemaVersion: "1.0",
@@ -23,8 +24,12 @@ const evidence = {
   health: null,
   quorumRead: null,
   funding: {
+    mode: null,
+    secretConfigured: configuredKeypairJson.length > 0,
+    minimumBalanceLamports: 100_000,
     requestedLamports: 2_000_000,
     payer: null,
+    balanceObservations: [],
     attempts: [],
     signature: null,
     verification: null,
@@ -53,6 +58,29 @@ function independentProviderCount(endpointIds) {
   ).size;
 }
 
+function loadConfiguredPayer() {
+  if (!configuredKeypairJson) {
+    return null;
+  }
+
+  let values;
+  try {
+    values = JSON.parse(configuredKeypairJson);
+  } catch (error) {
+    throw new Error(`SOLCONTINUITY_DEVNET_KEYPAIR is not valid JSON: ${error instanceof Error ? error.message : String(error)}`);
+  }
+
+  if (
+    !Array.isArray(values) ||
+    values.length !== 64 ||
+    values.some((value) => !Number.isInteger(value) || value < 0 || value > 255)
+  ) {
+    throw new Error("SOLCONTINUITY_DEVNET_KEYPAIR must be a Solana 64-byte secret-key JSON array.");
+  }
+
+  return Keypair.fromSecretKey(Uint8Array.from(values));
+}
+
 async function persist() {
   await mkdir(resolve(process.cwd(), "test-results"), { recursive: true });
   await writeFile(outputPath, `${JSON.stringify(evidence, null, 2)}\n`, "utf8");
@@ -77,7 +105,69 @@ async function waitForProviderConfirmation(signature, minimumProviders, timeoutM
   );
 }
 
+async function observeBalances(publicKey) {
+  const observations = [];
+
+  for (const endpoint of manifest.rpcEndpoints) {
+    const startedAt = Date.now();
+    try {
+      const connection = new Connection(endpoint.url, "confirmed");
+      const balanceLamports = await connection.getBalance(publicKey, "confirmed");
+      observations.push({
+        endpointId: endpoint.id,
+        provider: endpoint.provider,
+        ok: true,
+        balanceLamports,
+        elapsedMs: Date.now() - startedAt,
+        error: null
+      });
+    } catch (error) {
+      observations.push({
+        endpointId: endpoint.id,
+        provider: endpoint.provider,
+        ok: false,
+        balanceLamports: null,
+        elapsedMs: Date.now() - startedAt,
+        error: errorDetails(error)
+      });
+    }
+  }
+
+  evidence.funding.balanceObservations = observations;
+  await persist();
+  return observations;
+}
+
+async function useConfiguredFunding(payer) {
+  evidence.funding.mode = "pre-funded-github-actions-secret";
+  const observations = await observeBalances(payer.publicKey);
+  const usable = observations
+    .filter((observation) => observation.ok && observation.balanceLamports >= evidence.funding.minimumBalanceLamports)
+    .sort((left, right) => right.balanceLamports - left.balanceLamports)[0];
+
+  if (!usable) {
+    throw new Error(
+      `Configured Devnet CI wallet ${payer.publicKey.toBase58()} has less than ${evidence.funding.minimumBalanceLamports} lamports on every reachable provider. Fund the public address with Devnet SOL; never commit the private key.`
+    );
+  }
+
+  const endpoint = endpointById.get(usable.endpointId);
+  if (!endpoint) {
+    throw new Error(`Configured funding endpoint ${usable.endpointId} is missing from the manifest.`);
+  }
+
+  evidence.funding.balanceLamports = usable.balanceLamports;
+  await persist();
+  return {
+    endpointId: endpoint.id,
+    provider: endpoint.provider,
+    endpointUrl: endpoint.url,
+    balanceLamports: usable.balanceLamports
+  };
+}
+
 async function requestAirdropWithRetries(publicKey, lamports) {
+  evidence.funding.mode = "public-rpc-airdrop-fallback";
   const backoffMs = [0, 1_500, 3_000, 6_000];
 
   for (let roundIndex = 0; roundIndex < backoffMs.length; roundIndex += 1) {
@@ -136,7 +226,9 @@ async function requestAirdropWithRetries(publicKey, lamports) {
     }
   }
 
-  throw new Error(`Unable to fund the ephemeral Devnet payer after ${backoffMs.length} provider rounds.`);
+  throw new Error(
+    `Unable to fund the ephemeral Devnet payer after ${backoffMs.length} provider rounds. Configure the SOLCONTINUITY_DEVNET_KEYPAIR GitHub Actions secret with a pre-funded Devnet-only wallet for reliable CI.`
+  );
 }
 
 try {
@@ -155,14 +247,23 @@ try {
     minimumProviderAgreement: 2
   });
 
-  const payer = Keypair.generate();
+  const configuredPayer = loadConfiguredPayer();
+  const payer = configuredPayer ?? Keypair.generate();
   const recipient = Keypair.generate();
   evidence.funding.payer = payer.publicKey.toBase58();
   await persist();
 
-  const funding = await requestAirdropWithRetries(payer.publicKey, evidence.funding.requestedLamports);
+  const funding = configuredPayer
+    ? await useConfiguredFunding(payer)
+    : await requestAirdropWithRetries(payer.publicKey, evidence.funding.requestedLamports);
   const connection = new Connection(funding.endpointUrl, "confirmed");
   evidence.funding.balanceLamports = await connection.getBalance(payer.publicKey, "confirmed");
+
+  if (evidence.funding.balanceLamports < evidence.funding.minimumBalanceLamports) {
+    throw new Error(
+      `Devnet payer balance ${evidence.funding.balanceLamports} is below the required floor ${evidence.funding.minimumBalanceLamports}.`
+    );
+  }
 
   const latestBlockhash = await connection.getLatestBlockhash("confirmed");
   const transaction = new Transaction({
