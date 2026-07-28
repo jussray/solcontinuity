@@ -1,0 +1,31 @@
+{
+  "name": "solcontinuity",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Application-layer resilience and censorship-resistance tooling for Solana dApps.",
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "bin": {
+    "solcontinuity": "./dist/src/cli/index.js"
+  },
+  "scripts": {
+    "clean": "rm -rf dist coverage playwright-report test-results .pytest_cache",
+    "build": "tsc -p tsconfig.json && node scripts/copy-static.mjs",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test:node": "npm run build && node --test dist/tests/*.test.js",
+    "test:python": "python -m pytest python/tests -q",
+    "test:e2e": "npm run build && python e2e/test_dashboard.py",
+    "test": "npm run test:node && npm run test:python",
+    "start": "npm run build && node dist/src/api/server.js",
+    "start:analytics": "python -m uvicorn python.solcontinuity_analytics.app:app --host 127.0.0.1 --port 8001",
+    "audit:example": "npm run build && node dist/src/cli/index.js audit examples/resilience-manifest.json",
+    "health:example": "npm run build && node dist/src/cli/index.js health examples/resilience-manifest.json",
+    "verify": "npm run typecheck && npm run test && npm run test:e2e"
+  },
+  "devDependencies": {
+    "@types/node": "22.15.30",
+    "typescript": "5.8.3"
+  }
+}
