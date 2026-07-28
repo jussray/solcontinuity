@@ -22,9 +22,9 @@
       "timeoutMs": 8000
     },
     {
-      "id": "ankr-public-devnet",
-      "provider": "Ankr",
-      "url": "https://rpc.ankr.com/solana_devnet",
+      "id": "triton-public-devnet",
+      "provider": "Triton One",
+      "url": "https://api.devnet.rpcpool.com",
       "timeoutMs": 8000
     }
   ],
