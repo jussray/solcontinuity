@@ -3,11 +3,13 @@ import { resolve } from "node:path";
 import {
   Connection,
   Keypair,
-  SystemProgram,
-  Transaction
+  PublicKey,
+  Transaction,
+  TransactionInstruction
 } from "@solana/web3.js";
 import { MultiRpcClient } from "../dist/src/core/multi-rpc-client.js";
 
+const MEMO_PROGRAM_ID = new PublicKey("MemoSq4gqABAXKb96qnH8TysNcWxMyWCqXgDLGmfcHr");
 const manifestPath = resolve(process.cwd(), process.argv[2] ?? "examples/resilience-manifest.json");
 const outputPath = resolve(process.cwd(), "test-results/live-devnet-evidence.json");
 const manifest = JSON.parse(await readFile(manifestPath, "utf8"));
@@ -16,7 +18,7 @@ const endpointById = new Map(manifest.rpcEndpoints.map((endpoint) => [endpoint.i
 const configuredKeypairJson = process.env.SOLCONTINUITY_DEVNET_KEYPAIR?.trim() ?? "";
 
 const evidence = {
-  schemaVersion: "1.0",
+  schemaVersion: "1.1",
   generatedAt: new Date().toISOString(),
   manifest: manifest.name,
   network: manifest.network,
@@ -45,9 +47,29 @@ function sleep(ms) {
 }
 
 function errorDetails(error) {
-  return error instanceof Error
-    ? { name: error.name, message: error.message, stack: error.stack }
-    : { name: "UnknownError", message: String(error) };
+  if (!(error instanceof Error)) {
+    return { name: "UnknownError", message: String(error) };
+  }
+
+  const details = {
+    name: error.name,
+    message: error.message,
+    stack: error.stack
+  };
+
+  if ("code" in error) {
+    details.code = error.code;
+  }
+  if ("evidence" in error) {
+    details.evidence = error.evidence;
+  }
+  if ("cause" in error && error.cause !== undefined) {
+    details.cause = error.cause instanceof Error
+      ? { name: error.cause.name, message: error.cause.message }
+      : error.cause;
+  }
+
+  return details;
 }
 
 function independentProviderCount(endpointIds) {
@@ -67,7 +89,9 @@ function loadConfiguredPayer() {
   try {
     values = JSON.parse(configuredKeypairJson);
   } catch (error) {
-    throw new Error(`SOLCONTINUITY_DEVNET_KEYPAIR is not valid JSON: ${error instanceof Error ? error.message : String(error)}`);
+    throw new Error(
+      `SOLCONTINUITY_DEVNET_KEYPAIR is not valid JSON: ${error instanceof Error ? error.message : String(error)}`
+    );
   }
 
   if (
@@ -249,7 +273,6 @@ try {
 
   const configuredPayer = loadConfiguredPayer();
   const payer = configuredPayer ?? Keypair.generate();
-  const recipient = Keypair.generate();
   evidence.funding.payer = payer.publicKey.toBase58();
   await persist();
 
@@ -266,18 +289,32 @@ try {
   }
 
   const latestBlockhash = await connection.getLatestBlockhash("confirmed");
+  const memo = `SolContinuity live Devnet evidence ${evidence.generatedAt}`;
   const transaction = new Transaction({
     feePayer: payer.publicKey,
     recentBlockhash: latestBlockhash.blockhash
   }).add(
-    SystemProgram.transfer({
-      fromPubkey: payer.publicKey,
-      toPubkey: recipient.publicKey,
-      lamports: 1
+    new TransactionInstruction({
+      keys: [],
+      programId: MEMO_PROGRAM_ID,
+      data: Buffer.from(memo, "utf8")
     })
   );
   transaction.sign(payer);
   const transactionBase64 = transaction.serialize().toString("base64");
+
+  evidence.transaction = {
+    kind: "memo",
+    payer: payer.publicKey.toBase58(),
+    memo,
+    memoProgramId: MEMO_PROGRAM_ID.toBase58(),
+    recentBlockhash: latestBlockhash.blockhash,
+    lastValidBlockHeight: latestBlockhash.lastValidBlockHeight,
+    transactionBase64,
+    broadcast: null,
+    verification: null
+  };
+  await persist();
 
   const broadcast = await client.broadcastTransaction(transactionBase64, {
     skipPreflight: false,
@@ -292,16 +329,15 @@ try {
     throw new Error("The transaction was not attempted through at least two independent providers.");
   }
 
-  const verification = await waitForProviderConfirmation(broadcast.value, 2);
-
   evidence.transaction = {
-    payer: payer.publicKey.toBase58(),
-    recipient: recipient.publicKey.toBase58(),
-    lamports: 1,
-    recentBlockhash: latestBlockhash.blockhash,
-    lastValidBlockHeight: latestBlockhash.lastValidBlockHeight,
-    transactionBase64,
-    broadcast,
+    ...evidence.transaction,
+    broadcast
+  };
+  await persist();
+
+  const verification = await waitForProviderConfirmation(broadcast.value, 2);
+  evidence.transaction = {
+    ...evidence.transaction,
     verification
   };
   evidence.status = "passed";
