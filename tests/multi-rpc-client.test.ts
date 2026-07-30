@@ -130,3 +130,33 @@ test("transaction broadcast succeeds through one provider and preserves failed-r
     await Promise.all(servers.map((server) => server.close()));
   }
 });
+
+test("transaction broadcast forwards the requested preflight commitment", async () => {
+  const requests: unknown[] = [];
+  const fetchImpl: typeof fetch = async (_input, init) => {
+    const body = typeof init?.body === "string" ? init.body : "";
+    assert.notEqual(body, "");
+    requests.push(JSON.parse(body) as unknown);
+    return new Response(
+      JSON.stringify({ jsonrpc: "2.0", id: "test", result: "devnet-signature" }),
+      { status: 200, headers: { "content-type": "application/json" } }
+    );
+  };
+  const client = new MultiRpcClient({
+    endpoints: [{ id: "a", provider: "operator-a", url: "https://a.example.org" }],
+    fetchImpl
+  });
+
+  const result = await client.broadcastTransaction("signed-transaction-base64", {
+    preflightCommitment: "confirmed"
+  });
+
+  assert.equal(result.value, "devnet-signature");
+  const request = requests[0] as { readonly method?: unknown; readonly params?: readonly unknown[] } | undefined;
+  assert.equal(request?.method, "sendTransaction");
+  assert.ok(Array.isArray(request?.params));
+  const config = request?.params?.[1] as Record<string, unknown> | undefined;
+  assert.equal(config?.encoding, "base64");
+  assert.equal(config?.skipPreflight, false);
+  assert.equal(config?.preflightCommitment, "confirmed");
+});
