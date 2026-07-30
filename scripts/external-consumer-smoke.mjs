@@ -24,84 +24,85 @@ function run(command, args, cwd) {
   return result.stdout.trim();
 }
 
-const consumerSource = `
-import assert from "node:assert/strict";
-import { MultiRpcClient } from "solcontinuity";
-import { createSolContinuityServer } from "solcontinuity/server";
-
-const fetchImpl = async (_url, init) => {
-  const request = JSON.parse(String(init?.body ?? "{}"));
-  return new Response(JSON.stringify({
-    jsonrpc: "2.0",
-    id: request.id,
-    result: "devnet-genesis"
-  }), {
-    status: 200,
-    headers: { "content-type": "application/json" }
-  });
-};
-
-const client = new MultiRpcClient({
-  endpoints: [
-    { id: "operator-a", provider: "Operator A", url: "https://operator-a.invalid" },
-    { id: "operator-b", provider: "Operator B", url: "https://operator-b.invalid" }
-  ],
-  fetchImpl
-});
-
-const quorum = await client.request("getGenesisHash", [], {
-  mode: "quorum",
-  minimumAgreement: 2,
-  minimumProviderAgreement: 2
-});
-assert.equal(quorum.value, "devnet-genesis");
-assert.equal(quorum.evidence.agreementCount, 2);
-assert.equal(quorum.evidence.providerAgreementCount, 2);
-
-const server = createSolContinuityServer({ evidencePaths: [] });
-await new Promise((resolve, reject) => {
-  server.once("error", reject);
-  server.listen(0, "127.0.0.1", resolve);
-});
-
-try {
-  const address = server.address();
-  assert.ok(address && typeof address === "object");
-  const baseUrl = `http://127.0.0.1:${address.port}`;
-
-  const healthResponse = await fetch(`${baseUrl}/api/health`);
-  assert.equal(healthResponse.status, 200);
-  const health = await healthResponse.json();
-  assert.equal(health.service, "solcontinuity-api");
-  assert.equal(health.status, "ok");
-
-  const overviewResponse = await fetch(`${baseUrl}/api/overview`);
-  assert.equal(overviewResponse.status, 200);
-  const overview = await overviewResponse.json();
-  assert.equal(overview.project, "SolContinuity");
-  assert.equal(overview.boundary, "application-layer resilience");
-
-  const consoleResponse = await fetch(baseUrl);
-  assert.equal(consoleResponse.status, 200);
-  const html = await consoleResponse.text();
-  assert.match(html, /<h1>SolContinuity<\/h1>/);
-
-  console.log(JSON.stringify({
-    quorum: {
-      value: quorum.value,
-      agreementCount: quorum.evidence.agreementCount,
-      providerAgreementCount: quorum.evidence.providerAgreementCount
-    },
-    health: { service: health.service, status: health.status },
-    overview: { project: overview.project, boundary: overview.boundary },
-    consoleServed: true
-  }));
-} finally {
-  await new Promise((resolve, reject) => {
-    server.close((error) => error ? reject(error) : resolve());
-  });
-}
-`;
+const consumerSource = [
+  'import assert from "node:assert/strict";',
+  'import { MultiRpcClient } from "solcontinuity";',
+  'import { createSolContinuityServer } from "solcontinuity/server";',
+  '',
+  'const fetchImpl = async (_url, init) => {',
+  '  const request = JSON.parse(String(init?.body ?? "{}"));',
+  '  return new Response(JSON.stringify({',
+  '    jsonrpc: "2.0",',
+  '    id: request.id,',
+  '    result: "devnet-genesis"',
+  '  }), {',
+  '    status: 200,',
+  '    headers: { "content-type": "application/json" }',
+  '  });',
+  '};',
+  '',
+  'const client = new MultiRpcClient({',
+  '  endpoints: [',
+  '    { id: "operator-a", provider: "Operator A", url: "https://operator-a.invalid" },',
+  '    { id: "operator-b", provider: "Operator B", url: "https://operator-b.invalid" }',
+  '  ],',
+  '  fetchImpl',
+  '});',
+  '',
+  'const quorum = await client.request("getGenesisHash", [], {',
+  '  mode: "quorum",',
+  '  minimumAgreement: 2,',
+  '  minimumProviderAgreement: 2',
+  '});',
+  'assert.equal(quorum.value, "devnet-genesis");',
+  'assert.equal(quorum.evidence.agreementCount, 2);',
+  'assert.equal(quorum.evidence.providerAgreementCount, 2);',
+  '',
+  'const server = createSolContinuityServer({ evidencePaths: [] });',
+  'await new Promise((resolve, reject) => {',
+  '  server.once("error", reject);',
+  '  server.listen(0, "127.0.0.1", resolve);',
+  '});',
+  '',
+  'try {',
+  '  const address = server.address();',
+  '  assert.ok(address && typeof address === "object");',
+  '  const baseUrl = "http://127.0.0.1:" + address.port;',
+  '',
+  '  const healthResponse = await fetch(baseUrl + "/api/health");',
+  '  assert.equal(healthResponse.status, 200);',
+  '  const health = await healthResponse.json();',
+  '  assert.equal(health.service, "solcontinuity-api");',
+  '  assert.equal(health.status, "ok");',
+  '',
+  '  const overviewResponse = await fetch(baseUrl + "/api/overview");',
+  '  assert.equal(overviewResponse.status, 200);',
+  '  const overview = await overviewResponse.json();',
+  '  assert.equal(overview.project, "SolContinuity");',
+  '  assert.equal(overview.boundary, "application-layer resilience");',
+  '',
+  '  const consoleResponse = await fetch(baseUrl);',
+  '  assert.equal(consoleResponse.status, 200);',
+  '  const html = await consoleResponse.text();',
+  '  assert.match(html, /<h1>SolContinuity<\\/h1>/);',
+  '',
+  '  console.log(JSON.stringify({',
+  '    quorum: {',
+  '      value: quorum.value,',
+  '      agreementCount: quorum.evidence.agreementCount,',
+  '      providerAgreementCount: quorum.evidence.providerAgreementCount',
+  '    },',
+  '    health: { service: health.service, status: health.status },',
+  '    overview: { project: overview.project, boundary: overview.boundary },',
+  '    consoleServed: true',
+  '  }));',
+  '} finally {',
+  '  await new Promise((resolve, reject) => {',
+  '    server.close((error) => error ? reject(error) : resolve());',
+  '  });',
+  '}',
+  ''
+].join("\n");
 
 const tempRoot = await mkdtemp(join(tmpdir(), "solcontinuity-consumer-"));
 try {
@@ -124,6 +125,7 @@ try {
   ]) {
     assert.ok(packagedPaths.includes(requiredPath), `Missing packaged path: ${requiredPath}`);
   }
+  assert.ok(!packagedPaths.some((path) => path.startsWith("dist/tests/")), "Compiled tests must not ship in the package.");
   assert.ok(!packagedPaths.some((path) => path.startsWith("test-results/")), "Runtime evidence must not ship in the package.");
   assert.ok(!packagedPaths.some((path) => path.includes(".env")), "Environment files must not ship in the package.");
 
