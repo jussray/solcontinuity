@@ -18,7 +18,8 @@
     "./package.json": "./package.json"
   },
   "files": [
-    "dist",
+    "dist/src",
+    "dist/dashboard",
     "examples/resilience-manifest.json",
     "README.md",
     "docs/self-hosting.md"
