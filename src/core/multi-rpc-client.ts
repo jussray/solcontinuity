@@ -17,6 +17,14 @@ export interface MultiRpcClientOptions {
   readonly fetchImpl?: typeof fetch;
 }
 
+export interface BroadcastTransactionOptions {
+  readonly skipPreflight?: boolean;
+  readonly preflightCommitment?: Commitment;
+  readonly maxRetries?: number;
+  readonly minimumAcceptances?: number;
+  readonly minimumProviderAcceptances?: number;
+}
+
 interface SignatureStatusValue {
   readonly confirmationStatus?: Commitment | null;
   readonly confirmations?: number | null;
@@ -117,25 +125,27 @@ export class MultiRpcClient {
 
   public async broadcastTransaction(
     transactionBase64: string,
-    options: {
-      readonly skipPreflight?: boolean;
-      readonly maxRetries?: number;
-      readonly minimumAcceptances?: number;
-      readonly minimumProviderAcceptances?: number;
-    } = {}
+    options: BroadcastTransactionOptions = {}
   ): Promise<RpcRequestResult<string>> {
     const minimumAcceptances = options.minimumAcceptances ?? 1;
     const minimumProviderAcceptances = options.minimumProviderAcceptances ?? 1;
+    const sendOptions: {
+      encoding: "base64";
+      skipPreflight: boolean;
+      maxRetries: number;
+      preflightCommitment?: Commitment;
+    } = {
+      encoding: "base64",
+      skipPreflight: options.skipPreflight ?? false,
+      maxRetries: options.maxRetries ?? 3
+    };
+    if (options.preflightCommitment !== undefined) {
+      sendOptions.preflightCommitment = options.preflightCommitment;
+    }
+
     const observations = await Promise.all(
       this.#endpoints.map((endpoint) =>
-        this.#observe<string>(endpoint, "sendTransaction", [
-          transactionBase64,
-          {
-            encoding: "base64",
-            skipPreflight: options.skipPreflight ?? false,
-            maxRetries: options.maxRetries ?? 3
-          }
-        ])
+        this.#observe<string>(endpoint, "sendTransaction", [transactionBase64, sendOptions])
       )
     );
 

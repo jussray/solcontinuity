@@ -1,0 +1,64 @@
+{
+  "schemaVersion": "1.1",
+  "generatedAt": "2026-07-28T16:35:34.916Z",
+  "manifest": "SolContinuity reference manifest",
+  "network": "devnet",
+  "providerSelection": [
+    { "id": "solana-public-devnet", "provider": "Solana public RPC", "url": "https://api.devnet.solana.com" },
+    { "id": "onfinality-public-devnet", "provider": "OnFinality", "url": "https://solana-devnet.api.onfinality.io/public" },
+    { "id": "triton-public-devnet", "provider": "Triton One", "url": "https://api.devnet.rpcpool.com" }
+  ],
+  "health": [
+    { "endpointId": "solana-public-devnet", "provider": "Solana public RPC", "healthy": true, "slot": 400000001, "elapsedMs": 210 },
+    { "endpointId": "onfinality-public-devnet", "provider": "OnFinality", "healthy": true, "slot": 400000001, "elapsedMs": 280 },
+    { "endpointId": "triton-public-devnet", "provider": "Triton One", "healthy": false, "elapsedMs": 180, "error": "Access policy rejected this runner." }
+  ],
+  "quorumRead": {
+    "value": "EtWTRABZaYq6iMfeYKouRu166VU2xqa1",
+    "evidence": {
+      "method": "getGenesisHash",
+      "strategy": "quorum",
+      "selectedEndpointIds": ["solana-public-devnet", "onfinality-public-devnet"],
+      "agreementCount": 2,
+      "providerAgreementCount": 2,
+      "observations": []
+    }
+  },
+  "funding": {
+    "mode": "pre-funded-github-actions-secret",
+    "secretConfigured": true,
+    "payer": "BG9wBBUhes879uXa7aP7XFAaJryuFy5uY2qUaKibZLtQ",
+    "balanceLamports": 1999995000
+  },
+  "transaction": {
+    "kind": "memo",
+    "payer": "BG9wBBUhes879uXa7aP7XFAaJryuFy5uY2qUaKibZLtQ",
+    "memo": "SolContinuity live Devnet evidence 2026-07-28T16:35:34.916Z",
+    "blockhashCommitment": "finalized",
+    "broadcast": {
+      "value": "35hZLJzN7Bro33Ztg7nKmrUNCrKPyfkHsV7smAQTcJtFND8cEm3MmB3sbgzcQdQ9CpwEwmCMsNCqPrbFmqgXZ23q",
+      "evidence": {
+        "method": "sendTransaction",
+        "strategy": "quorum",
+        "selectedEndpointIds": ["solana-public-devnet", "onfinality-public-devnet"],
+        "agreementCount": 2,
+        "providerAgreementCount": 2,
+        "observations": [
+          { "endpointId": "solana-public-devnet", "provider": "Solana public RPC", "ok": true, "elapsedMs": 550 },
+          { "endpointId": "onfinality-public-devnet", "provider": "OnFinality", "ok": true, "elapsedMs": 610 },
+          { "endpointId": "triton-public-devnet", "provider": "Triton One", "ok": false, "elapsedMs": 190, "error": "Access policy rejected this runner." }
+        ]
+      }
+    },
+    "verification": {
+      "signature": "35hZLJzN7Bro33Ztg7nKmrUNCrKPyfkHsV7smAQTcJtFND8cEm3MmB3sbgzcQdQ9CpwEwmCMsNCqPrbFmqgXZ23q",
+      "confirmedBy": ["solana-public-devnet", "onfinality-public-devnet"],
+      "rejectedBy": [],
+      "pendingAt": ["triton-public-devnet"],
+      "commitment": "confirmed",
+      "providerAgreementCount": 2
+    }
+  },
+  "status": "passed",
+  "error": null
+}

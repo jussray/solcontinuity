@@ -5,11 +5,13 @@ import { fileURLToPath } from "node:url";
 import { auditManifest } from "../core/audit.js";
 import { ManifestValidationError } from "../core/errors.js";
 import { parseManifest } from "../core/manifest.js";
+import { loadEvidenceHistory } from "./evidence-history.js";
 
 export interface SolContinuityServerOptions {
   readonly dashboardRoot?: string;
   readonly exampleManifestPath?: string;
   readonly analyticsUrl?: string;
+  readonly evidencePaths?: readonly string[];
 }
 
 const contentTypes: Readonly<Record<string, string>> = {
@@ -61,6 +63,19 @@ export function createSolContinuityServer(options: SolContinuityServerOptions = 
   const dashboardRoot = options.dashboardRoot ?? join(projectRoot, "dist", "dashboard");
   const exampleManifestPath = options.exampleManifestPath ?? join(projectRoot, "examples", "resilience-manifest.json");
   const analyticsUrl = options.analyticsUrl ?? process.env.SOLCONTINUITY_ANALYTICS_URL;
+  const envEvidencePaths = process.env.SOLCONTINUITY_EVIDENCE_PATHS
+    ?.split(",")
+    .map((item) => item.trim())
+    .filter(Boolean)
+    .map((item) => resolve(projectRoot, item));
+  const evidencePaths = options.evidencePaths ?? (
+    envEvidencePaths && envEvidencePaths.length > 0
+      ? envEvidencePaths
+      : [join(projectRoot, "test-results", "live-devnet-evidence.json")]
+  );
+  const historyOptions = (limit: number) => analyticsUrl
+    ? { analyticsUrl, limit }
+    : { limit };
 
   return createServer(async (request, response) => {
     const url = new URL(request.url ?? "/", `http://${request.headers.host ?? "127.0.0.1"}`);
@@ -71,6 +86,7 @@ export function createSolContinuityServer(options: SolContinuityServerOptions = 
           service: "solcontinuity-api",
           status: "ok",
           analyticsConfigured: Boolean(analyticsUrl),
+          evidenceSources: evidencePaths.length,
           timestamp: new Date().toISOString()
         });
         return;
@@ -79,21 +95,39 @@ export function createSolContinuityServer(options: SolContinuityServerOptions = 
       if (request.method === "GET" && url.pathname === "/api/overview") {
         const manifest = parseManifest(await loadExampleManifest(exampleManifestPath));
         const report = auditManifest(manifest);
+        const evidence = await loadEvidenceHistory(evidencePaths, historyOptions(1));
+        const latestEvidence = evidence.records[0] ?? null;
         json(response, 200, {
           project: "SolContinuity",
           boundary: "application-layer resilience",
           manifest: manifest.name,
           audit: report,
           analyticsConfigured: Boolean(analyticsUrl),
+          latestEvidence,
+          evidenceErrors: evidence.errors,
           proofGates: {
             strictTypeScript: true,
             nodeTests: true,
             pythonTests: true,
             playwright: true,
-            liveDevnet: false,
+            liveDevnet: latestEvidence?.status === "passed",
             externalSelfHost: false
           }
         });
+        return;
+      }
+
+      if (request.method === "GET" && url.pathname === "/api/evidence/history") {
+        const rawLimit = url.searchParams.get("limit");
+        const limit = rawLimit === null ? 20 : Number(rawLimit);
+        if (!Number.isInteger(limit) || limit < 1 || limit > 100) {
+          json(response, 400, {
+            error: "INVALID_LIMIT",
+            message: "limit must be an integer between 1 and 100."
+          });
+          return;
+        }
+        json(response, 200, await loadEvidenceHistory(evidencePaths, historyOptions(limit)));
         return;
       }
 

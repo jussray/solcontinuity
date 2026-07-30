@@ -9,19 +9,22 @@ const apiStatus = document.getElementById("api-status");
 const analyticsStatus = document.getElementById("analytics-status");
 const evidenceMode = document.getElementById("evidence-mode");
 const overviewEvidence = document.getElementById("overview-evidence");
+const evidenceSummary = document.getElementById("evidence-summary");
+const evidenceHistory = document.getElementById("evidence-history");
+const liveDevnetGate = document.getElementById("live-devnet-gate");
 
 const sampleManifest = {
   schemaVersion: "1.0",
-  name: "ProofRail Devnet Reference",
-  description: "Reference community-grant and milestone-payment dApp.",
+  name: "SolContinuity Devnet Reference",
+  description: "Reference application-layer resilience manifest.",
   network: "devnet",
   sourceRepository: "https://github.com/jussray/solcontinuity",
   license: "Apache-2.0",
   programAddresses: ["11111111111111111111111111111111"],
   rpcEndpoints: [
-    { id: "public", provider: "Solana public RPC", url: "https://api.devnet.solana.com" },
-    { id: "provider-a", provider: "Independent A", url: "https://rpc-a.example.org" },
-    { id: "provider-b", provider: "Independent B", url: "https://rpc-b.example.org" }
+    { id: "solana-public-devnet", provider: "Solana public RPC", url: "https://api.devnet.solana.com" },
+    { id: "onfinality-public-devnet", provider: "OnFinality", url: "https://solana-devnet.api.onfinality.io/public" },
+    { id: "triton-public-devnet", provider: "Triton One", url: "https://api.devnet.rpcpool.com" }
   ],
   frontend: {
     primaryUrl: "https://app.example.org",
@@ -35,9 +38,9 @@ const sampleManifest = {
 };
 
 const sampleProviders = [
-  { endpoint_id: "public", operator: "Solana public RPC", healthy: true, latency_ms: 175, agrees_with_majority: true },
-  { endpoint_id: "provider-a", operator: "Independent A", healthy: true, latency_ms: 240, agrees_with_majority: true },
-  { endpoint_id: "provider-b", operator: "Independent B", healthy: false, latency_ms: 1600, agrees_with_majority: false }
+  { endpoint_id: "solana-public-devnet", operator: "Solana public RPC", healthy: true, latency_ms: 175, agrees_with_majority: true },
+  { endpoint_id: "onfinality-public-devnet", operator: "OnFinality", healthy: true, latency_ms: 240, agrees_with_majority: true },
+  { endpoint_id: "triton-public-devnet", operator: "Triton One", healthy: false, latency_ms: 1600, agrees_with_majority: false }
 ];
 
 function activateTab(name) {
@@ -105,13 +108,107 @@ async function apiRequest(path, options) {
   return payload;
 }
 
+function textElement(tagName, className, text) {
+  const element = document.createElement(tagName);
+  if (className) element.className = className;
+  element.textContent = text;
+  return element;
+}
+
+function formatTime(value) {
+  if (!value) return "Unknown time";
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.getTime()) ? String(value) : parsed.toLocaleString();
+}
+
+function renderEvidenceRecord(record) {
+  const card = document.createElement("article");
+  card.className = "evidence-card";
+
+  const header = document.createElement("div");
+  header.className = "evidence-card-header";
+  const titleGroup = document.createElement("div");
+  titleGroup.append(
+    textElement("span", `status-pill status-${record.status === "passed" ? "passed" : "neutral"}`, record.status || "unknown"),
+    textElement("h3", "", record.transaction?.kind === "memo" ? "Signed Memo transaction" : "Blockchain evidence")
+  );
+  header.append(titleGroup, textElement("time", "evidence-time", formatTime(record.generatedAt)));
+  card.append(header);
+
+  const assessment = record.assessment;
+  const metrics = document.createElement("dl");
+  metrics.className = "evidence-grid";
+  const rows = [
+    ["Network", record.network || "unknown"],
+    ["Assessment", assessment ? `${assessment.verdict} · ${assessment.score}/100` : record.assessmentError || "not scored"],
+    ["Confirmed by", (record.transaction?.verification?.confirmedBy || []).join(", ") || "none"],
+    ["Routes attempted", String(record.transaction?.broadcast?.observations?.length || 0)],
+    ["Commitment", record.transaction?.verification?.commitment || "unknown"],
+    ["Balance", Number.isFinite(record.funding?.balanceLamports) ? `${record.funding.balanceLamports} lamports` : "unknown"]
+  ];
+  rows.forEach(([label, value]) => {
+    const row = document.createElement("div");
+    row.append(textElement("dt", "", label), textElement("dd", "", value));
+    metrics.append(row);
+  });
+  card.append(metrics);
+
+  const signatureLabel = textElement("p", "evidence-label", "Transaction signature");
+  const signature = textElement("code", "evidence-signature", record.transaction?.signature || "No signature recorded");
+  card.append(signatureLabel, signature);
+
+  if (record.transaction?.memo) {
+    const details = document.createElement("details");
+    details.append(textElement("summary", "", "Evidence memo"), textElement("pre", "", record.transaction.memo));
+    card.append(details);
+  }
+
+  return card;
+}
+
+function renderStaticEvidenceMode() {
+  evidenceHistory.replaceChildren();
+  evidenceSummary.textContent = "Live evidence history requires the SolContinuity API. Static recovery mode makes no live-chain claim.";
+  evidenceHistory.append(textElement("div", "evidence-empty", "The recovery console remains usable for audits and provider modeling without claiming current blockchain state."));
+}
+
+async function loadEvidenceHistory() {
+  if (!canUseApi()) {
+    renderStaticEvidenceMode();
+    return;
+  }
+
+  evidenceSummary.textContent = "Loading sanitized transaction evidence.";
+  evidenceHistory.replaceChildren();
+  try {
+    const payload = await apiRequest("/api/evidence/history?limit=20");
+    const records = Array.isArray(payload.records) ? payload.records : [];
+    if (!records.length) {
+      evidenceSummary.textContent = "No readable evidence artifacts are configured. No live-chain claim is being made.";
+      evidenceHistory.append(textElement("div", "evidence-empty", "Configure SOLCONTINUITY_EVIDENCE_PATHS or run the live Devnet evidence workflow."));
+      return;
+    }
+    evidenceSummary.textContent = `${records.length} sanitized evidence record${records.length === 1 ? "" : "s"}. Serialized transaction bytes are never returned.`;
+    records.forEach((record) => evidenceHistory.append(renderEvidenceRecord(record)));
+    if (Array.isArray(payload.errors) && payload.errors.length) {
+      evidenceHistory.append(textElement("p", "evidence-error", `${payload.errors.length} evidence source error(s) were preserved.`));
+    }
+    announcement.textContent = "Live evidence history refreshed.";
+  } catch (error) {
+    evidenceSummary.textContent = `Evidence history unavailable: ${error instanceof Error ? error.message : String(error)}. No live-chain claim is being made.`;
+    evidenceHistory.append(textElement("div", "evidence-empty", "The Console failed closed and preserved the truth boundary."));
+    announcement.textContent = "Evidence history unavailable; no live claim was made.";
+  }
+}
+
 async function refreshOverview() {
   if (!canUseApi()) {
     apiStatus.textContent = "Offline";
     analyticsStatus.textContent = "Offline";
     evidenceMode.textContent = "Evidence mode: static artifact";
     evidenceMode.classList.add("neutral");
-    overviewEvidence.innerHTML = "<strong>Evidence:</strong> Static artifact mode. The console is interactive, but no backend claims are being made.";
+    overviewEvidence.textContent = "Evidence: Static artifact mode. The console is interactive, but no backend or live-chain claim is being made.";
+    liveDevnetGate.checked = false;
     return;
   }
 
@@ -119,15 +216,18 @@ async function refreshOverview() {
     const payload = await apiRequest("/api/overview");
     apiStatus.textContent = "Connected";
     analyticsStatus.textContent = payload.analyticsConfigured ? "Configured" : "Not configured";
-    evidenceMode.textContent = "Evidence mode: backend connected";
-    evidenceMode.classList.remove("neutral");
-    overviewEvidence.innerHTML = `<strong>Evidence:</strong> ${payload.manifest} audit score ${payload.audit.score}/100. Boundary: ${payload.boundary}.`;
+    evidenceMode.textContent = payload.proofGates?.liveDevnet ? "Evidence mode: live proof loaded" : "Evidence mode: backend connected";
+    evidenceMode.classList.toggle("neutral", !payload.proofGates?.liveDevnet);
+    overviewEvidence.textContent = `Evidence: ${payload.manifest} audit score ${payload.audit.score}/100. Boundary: ${payload.boundary}. Live Devnet proof: ${payload.proofGates?.liveDevnet ? "verified artifact loaded" : "not currently loaded"}.`;
+    liveDevnetGate.checked = Boolean(payload.proofGates?.liveDevnet);
     announcement.textContent = "Backend evidence refreshed.";
   } catch (error) {
     apiStatus.textContent = "Unavailable";
     analyticsStatus.textContent = "Unknown";
     evidenceMode.textContent = "Evidence mode: fallback";
-    overviewEvidence.innerHTML = `<strong>Evidence unavailable:</strong> ${error instanceof Error ? error.message : String(error)}`;
+    evidenceMode.classList.add("neutral");
+    overviewEvidence.textContent = `Evidence unavailable: ${error instanceof Error ? error.message : String(error)}`;
+    liveDevnetGate.checked = false;
     announcement.textContent = "Backend evidence unavailable; no live claim was made.";
   }
 }
@@ -159,16 +259,21 @@ async function runAudit() {
 }
 
 function renderProviderSamples() {
-  providerSamplesRoot.innerHTML = sampleProviders.map((item) => `
-    <article class="provider-card">
-      <div><strong>${item.endpoint_id}</strong><span>${item.operator}</span></div>
-      <dl>
-        <div><dt>Health</dt><dd>${item.healthy ? "Healthy" : "Failed"}</dd></div>
-        <div><dt>Latency</dt><dd>${item.latency_ms} ms</dd></div>
-        <div><dt>Agreement</dt><dd>${item.agrees_with_majority ? "Yes" : "No"}</dd></div>
-      </dl>
-    </article>
-  `).join("");
+  providerSamplesRoot.replaceChildren();
+  sampleProviders.forEach((item) => {
+    const card = document.createElement("article");
+    card.className = "provider-card";
+    const heading = document.createElement("div");
+    heading.append(textElement("strong", "", item.endpoint_id), textElement("span", "", item.operator));
+    const list = document.createElement("dl");
+    [["Health", item.healthy ? "Healthy" : "Failed"], ["Latency", `${item.latency_ms} ms`], ["Agreement", item.agrees_with_majority ? "Yes" : "No"]].forEach(([label, value]) => {
+      const row = document.createElement("div");
+      row.append(textElement("dt", "", label), textElement("dd", "", value));
+      list.append(row);
+    });
+    card.append(heading, list);
+    providerSamplesRoot.append(card);
+  });
 }
 
 async function runProviderScore() {
@@ -200,9 +305,13 @@ tabs.forEach((button) => button.addEventListener("click", () => activateTab(butt
 document.getElementById("reset-manifest").addEventListener("click", resetManifest);
 document.getElementById("run-audit").addEventListener("click", runAudit);
 document.getElementById("run-provider-score").addEventListener("click", runProviderScore);
-document.getElementById("refresh-evidence").addEventListener("click", refreshOverview);
+document.getElementById("refresh-evidence").addEventListener("click", async () => {
+  await Promise.all([refreshOverview(), loadEvidenceHistory()]);
+});
+document.getElementById("refresh-history").addEventListener("click", loadEvidenceHistory);
 
 renderProviderSamples();
 resetManifest();
 activateTab("overview");
 refreshOverview();
+loadEvidenceHistory();
