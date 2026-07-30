@@ -16,7 +16,7 @@
         <p class="lede">Detect provider concentration, test failure paths, and publish evidence that a Solana dApp can recover.</p>
       </div>
       <div class="hero-status">
-        <span class="status-badge">Open-source technical starter · v0.1</span>
+        <span class="status-badge">Open-source technical starter · v0.2</span>
         <span id="evidence-mode" class="status-badge neutral">Evidence mode: checking</span>
       </div>
     </header>
@@ -30,6 +30,7 @@
 
     <nav class="tabs" aria-label="Dashboard sections">
       <button type="button" data-tab="overview">Overview</button>
+      <button type="button" data-tab="evidence">Live evidence</button>
       <button type="button" data-tab="audit">Audit lab</button>
       <button type="button" data-tab="providers">Provider lab</button>
       <button type="button" data-tab="architecture">Architecture</button>
@@ -51,6 +52,20 @@
         <article class="card"><h3>Evidence resilience</h3><p>Export machine-readable reports so the hosted console is not the only source of truth.</p></article>
       </div>
       <aside class="callout" id="overview-evidence"><strong>Evidence:</strong> Loading the current project boundary.</aside>
+    </section>
+
+    <section class="panel hidden" data-panel="evidence">
+      <div class="section-title">
+        <div>
+          <p class="eyebrow">BLOCKCHAIN EVIDENCE</p>
+          <h2>Live transaction history</h2>
+          <p>Signed transaction outcomes, route attempts, and independent confirmation, without exposing serialized transaction bytes.</p>
+        </div>
+        <button id="refresh-history" class="secondary" type="button">Refresh history</button>
+      </div>
+      <p id="evidence-summary" class="muted">Loading evidence history.</p>
+      <div id="evidence-history" class="evidence-list" aria-live="polite"></div>
+      <aside class="truth-note"><strong>Truth boundary:</strong> Evidence proves only the tested application-layer behavior. It does not guarantee provider honesty, consensus safety, or universal transaction inclusion.</aside>
     </section>
 
     <section class="panel hidden" data-panel="audit">
@@ -99,10 +114,10 @@
         <label><input type="checkbox" checked disabled /> Python analytics tests</label>
         <label><input type="checkbox" checked disabled /> Manifest risk tests</label>
         <label><input type="checkbox" checked disabled /> Playwright console path</label>
-        <label><input type="checkbox" disabled /> Live Devnet multi-provider test</label>
+        <label><input id="live-devnet-gate" type="checkbox" disabled /> Live Devnet multi-provider test</label>
         <label><input type="checkbox" disabled /> External developer self-host test</label>
       </div>
-      <aside class="callout"><strong>Next gate:</strong> replace placeholder provider URLs with approved independent endpoints, run Devnet evidence, and preserve the machine-readable report and browser artifact.</aside>
+      <aside class="callout"><strong>Next gate:</strong> prove an external developer can deploy the recovery path independently and reproduce the evidence flow.</aside>
     </section>
 
     <p id="announcement" class="announcement" aria-live="polite"></p>
