@@ -36,6 +36,10 @@ def run() -> None:
         expect(page.get_by_text("Provider-aware quorum")).to_be_visible()
         expect(page.locator("#evidence-mode")).to_contain_text("static artifact")
 
+        page.get_by_role("button", name="Live evidence").click()
+        expect(page.get_by_role("heading", name="Live transaction history")).to_be_visible()
+        expect(page.locator("#evidence-summary")).to_contain_text("Static recovery mode makes no live-chain claim")
+
         page.get_by_role("button", name="Audit lab").click()
         expect(page.get_by_role("heading", name="Manifest audit lab")).to_be_visible()
         page.get_by_role("button", name="Run audit").click()
@@ -56,6 +60,7 @@ def run() -> None:
         expect(page.get_by_text("Python analytics tests")).to_be_visible()
         expect(page.get_by_text("Live Devnet multi-provider test")).to_be_visible()
         expect(page.get_by_text("External developer self-host test")).to_be_visible()
+        expect(page.locator("#live-devnet-gate")).not_to_be_checked()
 
         page.wait_for_timeout(300)
 
