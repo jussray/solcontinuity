@@ -110,6 +110,7 @@ export function createSolContinuityServer(options: SolContinuityServerOptions = 
             nodeTests: true,
             pythonTests: true,
             playwright: true,
+            automatedPackageSelfHost: true,
             liveDevnet: latestEvidence?.status === "passed",
             externalSelfHost: false
           }
