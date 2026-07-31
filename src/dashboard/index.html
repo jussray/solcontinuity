@@ -114,10 +114,11 @@
         <label><input type="checkbox" checked disabled /> Python analytics tests</label>
         <label><input type="checkbox" checked disabled /> Manifest risk tests</label>
         <label><input type="checkbox" checked disabled /> Playwright console path</label>
+        <label><input id="package-self-host-gate" type="checkbox" checked disabled /> Automated clean-room package and self-host test</label>
         <label><input id="live-devnet-gate" type="checkbox" disabled /> Live Devnet multi-provider test</label>
-        <label><input type="checkbox" disabled /> External developer self-host test</label>
+        <label><input id="external-self-host-gate" type="checkbox" disabled /> External developer self-host test (independent human)</label>
       </div>
-      <aside class="callout"><strong>Next gate:</strong> prove an external developer can deploy the recovery path independently and reproduce the evidence flow.</aside>
+      <aside class="callout"><strong>Next gate:</strong> prove an independent developer can deploy the recovery path and reproduce the evidence flow without founder assistance.</aside>
     </section>
 
     <p id="announcement" class="announcement" aria-live="polite"></p>

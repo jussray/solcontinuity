@@ -13,6 +13,7 @@ A dApp can use decentralized programs while still depending on one RPC provider,
 - multi-route signed transaction broadcast
 - independent signature-status verification
 - reusable JavaScript quorum-read and signed-broadcast examples
+- stable package entrypoint and generated TypeScript declarations
 - typed resilience manifest and deterministic audit
 - Node.js API and self-hostable technical console
 - sanitized blockchain evidence-history endpoint
@@ -20,7 +21,8 @@ A dApp can use decentralized programs while still depending on one RPC provider,
 - standalone Python evidence-report CLI
 - deterministic outage simulator
 - CLI audit and endpoint-health commands
-- Node, Python, and Playwright tests
+- clean-room tarball install and self-host verification
+- Node, Python, Playwright, and external-consumer tests
 - GitHub Actions verification and live Devnet evidence workflows
 - threat model, ADR, Figma spec, Canva deck outline, and review prompts
 
@@ -37,6 +39,8 @@ python -m playwright install chromium
 ```bash
 npm run verify
 ```
+
+`npm run verify` includes a clean-room consumer gate. It packs SolContinuity, installs the tarball into a temporary unrelated project, imports the SDK, runs deterministic two-provider quorum, starts the packaged Node server, loads the packaged manifest, and serves the packaged Console.
 
 ## Run
 
@@ -93,6 +97,19 @@ python scripts/score-evidence.py examples/evidence/live-devnet-evidence.sample.j
 
 The report scores provider health, quorum, route coverage, broadcast acceptance, and independent confirmation. Its result is limited to the supplied application-layer evidence.
 
+## Package and self-host gate
+
+The repository remains marked `private: true` in `package.json` to prevent accidental registry publication. A local tarball can still be built and verified:
+
+```bash
+npm pack
+npm run test:consumer
+```
+
+The package exposes the SDK at `solcontinuity` and the server factory at `solcontinuity/server`. It includes runtime code, declarations, Console assets, the reference manifest, and self-host documentation. It excludes compiled tests, runtime evidence, environment files, and private keys.
+
+See `docs/self-hosting.md` for the clean-room installation and server instructions. The automated gate proves package installability and self-host startup, not adoption by an independent human developer.
+
 ## CLI
 
 ```bash
@@ -115,15 +132,15 @@ src/cli/        Command-line interface
 src/dashboard/  Self-hostable technical console
 src/testing/    Deterministic RPC failure simulator
 python/         FastAPI analytics, evidence scoring, and tests
-scripts/        Live evidence and report runners
+scripts/        Live evidence, clean-room package, and report runners
 examples/       Resilience manifests, JavaScript examples, and sanitized fixtures
 tests/          Node unit and integration tests
 e2e/            Playwright browser verification
 design/         Figma-ready UI spec and Canva grant-deck outline
-docs/           Architecture, ADRs, references, and threat model
+docs/           Architecture, ADRs, references, self-hosting, and threat model
 prompts/        Founder and product review operating artifacts
 ```
 
 ## Founder gates
 
-Publishing, deployment, spending, grant submission, secrets, live transaction tests, and merge remain explicit founder decisions. No destructive operation is included.
+Registry publishing, deployment, spending, grant submission, secrets, live transaction tests, and merge remain explicit founder decisions. No destructive operation is included.
