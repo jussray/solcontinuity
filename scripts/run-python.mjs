@@ -2,11 +2,15 @@ import { spawnSync } from "node:child_process";
 
 const args = process.argv.slice(2);
 const configured = process.env.PYTHON_BIN?.trim();
-const candidates = [...new Set([configured, "python3", "python"].filter(Boolean))];
+const candidates = configured ? [configured] : ["python3", "python"];
+const python3Probe = [
+  "-c",
+  "import sys; raise SystemExit(0 if sys.version_info.major == 3 else 1)"
+];
 
 let selected = null;
 for (const candidate of candidates) {
-  const probe = spawnSync(candidate, ["--version"], { stdio: "ignore" });
+  const probe = spawnSync(candidate, python3Probe, { stdio: "ignore" });
   if (!probe.error && probe.status === 0) {
     selected = candidate;
     break;
@@ -18,9 +22,10 @@ for (const candidate of candidates) {
 }
 
 if (!selected) {
-  console.error(
-    "Python 3 is required. Set PYTHON_BIN to a Python 3 executable or install python3/python on PATH."
-  );
+  const detail = configured
+    ? `PYTHON_BIN='${configured}' is not a usable Python 3 executable.`
+    : "No usable Python 3 executable was found on PATH.";
+  console.error(`${detail} Install Python 3 or set PYTHON_BIN to a Python 3 executable.`);
   process.exit(1);
 }
 
