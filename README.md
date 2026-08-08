@@ -34,6 +34,12 @@ python -m pip install -r requirements-dev.txt
 python -m playwright install chromium
 ```
 
+Or run the equivalent one-command setup script:
+
+```bash
+./setup.sh
+```
+
 ## Verify
 
 ```bash
