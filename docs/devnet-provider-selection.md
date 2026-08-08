@@ -1,10 +1,11 @@
 # Devnet provider selection
 
-SolContinuity's live evidence gate uses three separately operated RPC routes:
+SolContinuity's live evidence gate uses four separately operated RPC routes:
 
 1. **Solana public RPC**: the official rate-limited Devnet endpoint.
-2. **OnFinality**: a third-party public Solana Devnet endpoint operated by OnFinality.
-3. **Triton One**: a third-party public Devnet RPC route operated by Triton One.
+2. **Ankr**: a third-party Solana Devnet endpoint listed by Solana's RPC infrastructure directory.
+3. **OnFinality**: a third-party public Solana Devnet endpoint operated by OnFinality.
+4. **Triton One**: a third-party public Devnet RPC route operated by Triton One.
 
 The routes are treated as separate providers because they are published and operated by distinct organizations. Different URLs from the same operator would not increase provider quorum.
 
