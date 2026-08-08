@@ -21,6 +21,8 @@ command -v node >/dev/null 2>&1 || fail "Node.js is required but not found (http
 command -v npm >/dev/null 2>&1 || fail "npm is required but not found"
 PYTHON_BIN="$(command -v python3 || command -v python || true)"
 [ -n "$PYTHON_BIN" ] || fail "Python 3 is required but not found"
+"$PYTHON_BIN" -c 'import sys; raise SystemExit(0 if sys.version_info.major == 3 else 1)' \
+  || fail "Python 3 is required but '$PYTHON_BIN' is not Python 3"
 
 log "Node $(node --version), npm $(npm --version), $($PYTHON_BIN --version)"
 
