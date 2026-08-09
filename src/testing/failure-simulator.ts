@@ -52,7 +52,15 @@ export async function createMockRpcServer(
           ? behavior.health ?? "ok"
           : payload.method === "getSlot"
             ? behavior.slot ?? 123
-            : null;
+            : payload.method === "getLatestBlockhash"
+              ? {
+                  context: { slot: behavior.slot ?? 123 },
+                  value: {
+                    blockhash: "11111111111111111111111111111111",
+                    lastValidBlockHeight: 999_999
+                  }
+                }
+              : null;
 
     response.writeHead(200, { "content-type": "application/json" });
     response.end(JSON.stringify({ jsonrpc: "2.0", id: payload.id, result }));

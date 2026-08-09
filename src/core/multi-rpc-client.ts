@@ -37,6 +37,14 @@ interface SignatureStatusesResult {
   readonly value: readonly (SignatureStatusValue | null)[];
 }
 
+interface LatestBlockhashResult {
+  readonly context: { readonly slot: number };
+  readonly value: {
+    readonly blockhash: string;
+    readonly lastValidBlockHeight: number;
+  };
+}
+
 function providerName(endpoint: RpcEndpointConfig): string {
   if (endpoint.provider?.trim()) {
     return endpoint.provider.trim();
@@ -101,13 +109,24 @@ export class MultiRpcClient {
       this.#endpoints.map(async (endpoint): Promise<EndpointHealth> => {
         const startedAt = performance.now();
         try {
-          const health = await this.#requestEndpoint<string>(endpoint, "getHealth", []);
-          const slot = await this.#requestEndpoint<number>(endpoint, "getSlot", [{ commitment: "confirmed" }]);
+          const latest = await this.#requestEndpoint<LatestBlockhashResult>(endpoint, "getLatestBlockhash", [
+            { commitment: "confirmed" }
+          ]);
+          if (
+            !Number.isInteger(latest?.context?.slot) ||
+            typeof latest?.value?.blockhash !== "string" ||
+            latest.value.blockhash.length === 0
+          ) {
+            throw new ResilienceError(
+              `${endpoint.id} returned an invalid getLatestBlockhash response.`,
+              "RPC_RESPONSE_ERROR"
+            );
+          }
           return {
             endpointId: endpoint.id,
             provider: providerName(endpoint),
-            healthy: health === "ok",
-            slot,
+            healthy: true,
+            slot: latest.context.slot,
             elapsedMs: Math.round(performance.now() - startedAt)
           };
         } catch (error) {

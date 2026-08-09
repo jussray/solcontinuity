@@ -21,9 +21,8 @@ command -v node >/dev/null 2>&1 || fail "Node.js is required but not found (http
 command -v npm >/dev/null 2>&1 || fail "npm is required but not found"
 PYTHON_BIN="$(command -v python3 || command -v python || true)"
 [ -n "$PYTHON_BIN" ] || fail "Python 3 is required but not found"
-if ! command -v python >/dev/null 2>&1; then
-  log "warning: 'python' not found on PATH (using '$PYTHON_BIN' for this setup). The npm scripts test:python, test:e2e, and start:analytics invoke 'python' directly, so 'npm run verify' will fail until 'python' resolves to a Python 3 interpreter (e.g. install python-is-python3, or add a matching shim to PATH)."
-fi
+"$PYTHON_BIN" -c 'import sys; raise SystemExit(0 if sys.version_info.major == 3 else 1)' \
+  || fail "Python 3 is required but '$PYTHON_BIN' is not Python 3"
 
 log "Node $(node --version), npm $(npm --version), $($PYTHON_BIN --version)"
 

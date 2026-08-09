@@ -16,6 +16,12 @@
       "timeoutMs": 8000
     },
     {
+      "id": "helius-demo-devnet",
+      "provider": "Helius demo proxy",
+      "url": "https://demo.helius.dev/api/rpc?network=devnet",
+      "timeoutMs": 8000
+    },
+    {
       "id": "onfinality-public-devnet",
       "provider": "OnFinality",
       "url": "https://solana-devnet.api.onfinality.io/public",

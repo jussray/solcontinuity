@@ -265,7 +265,7 @@ try {
     throw new Error(`Fewer than two independent providers are healthy: ${JSON.stringify(evidence.health)}`);
   }
 
-  evidence.quorumRead = await client.request("getGenesisHash", [], {
+  evidence.quorumRead = await client.request("getMinimumBalanceForRentExemption", [0], {
     mode: "quorum",
     minimumAgreement: 2,
     minimumProviderAgreement: 2
