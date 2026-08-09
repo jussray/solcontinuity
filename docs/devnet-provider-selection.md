@@ -3,7 +3,7 @@
 SolContinuity's live evidence gate uses four separately operated RPC routes:
 
 1. **Solana public RPC**: the official rate-limited Devnet endpoint.
-2. **Ankr**: a third-party Solana Devnet endpoint listed by Solana's RPC infrastructure directory.
+2. **Helius demo proxy**: Helius's shared Devnet sandbox endpoint for agents, examples, and CI. It is evidence-only infrastructure, not a production RPC recommendation.
 3. **OnFinality**: a third-party public Solana Devnet endpoint operated by OnFinality.
 4. **Triton One**: a third-party public Devnet RPC route operated by Triton One.
 
@@ -14,7 +14,9 @@ The routes are treated as separate providers because they are published and oper
 The gate proves actual Solana use rather than monitoring alone:
 
 - load a Devnet-only fee payer from the protected `SOLCONTINUITY_DEVNET_KEYPAIR` GitHub Actions secret
-- verify its public balance without publishing the private key
+- probe each route with `getLatestBlockhash`, which is supported by managed RPC proxies that may not expose validator-only health methods
+- require a deterministic rent-exemption quorum read across at least two independent providers
+- verify the fee payer's public balance without publishing the private key
 - acquire a finalized blockhash that survives cross-provider preflight
 - construct and sign a Memo-program transaction containing a timestamped SolContinuity evidence marker
 - broadcast the serialized transaction through every configured RPC route
@@ -45,8 +47,8 @@ The workflow publishes only the public address, observed balance, serialized sig
 
 ## Credential boundary
 
-No key, token, seed, or private endpoint is committed to the repository. Production endpoints and API keys must be supplied through environment-specific configuration.
+No key, token, seed, or private endpoint is committed to the repository. Production endpoints and API keys must be supplied through environment-specific configuration. The shared Helius demo route is intentionally confined to Devnet evidence and must not be treated as production infrastructure.
 
 ## Operational boundary
 
-Public Devnet endpoints may enforce IP policies or rate limits. A route can therefore appear as pending or blocked while two independent routes still satisfy the evidence threshold. The workflow fails closed when the required independent evidence is absent rather than treating an offline simulation as live blockchain proof.
+Public and shared Devnet endpoints may enforce IP policies, method allowlists, or rate limits. A route can therefore appear as pending or blocked while two independent routes still satisfy the evidence threshold. The workflow fails closed when the required independent evidence is absent rather than treating an offline simulation as live blockchain proof.
