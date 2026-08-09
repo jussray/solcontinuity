@@ -1,4 +1,4 @@
-import { spawnSync } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
 
 const args = process.argv.slice(2);
 const configured = process.env.PYTHON_BIN?.trim();
@@ -29,10 +29,39 @@ if (!selected) {
   process.exit(1);
 }
 
-const result = spawnSync(selected, args, { stdio: "inherit" });
-if (result.error) {
-  console.error(`Failed to run '${selected}': ${result.error.message}`);
-  process.exit(1);
+const child = spawn(selected, args, { stdio: "inherit" });
+let forwardedSignal = null;
+
+const signalHandlers = new Map();
+for (const signal of ["SIGINT", "SIGTERM"]) {
+  const handler = () => {
+    forwardedSignal ??= signal;
+    if (child.exitCode === null && child.signalCode === null) {
+      child.kill(signal);
+    }
+  };
+  signalHandlers.set(signal, handler);
+  process.on(signal, handler);
 }
 
-process.exit(result.status ?? 1);
+function cleanupSignalHandlers() {
+  for (const [signal, handler] of signalHandlers) {
+    process.off(signal, handler);
+  }
+}
+
+child.once("error", (error) => {
+  cleanupSignalHandlers();
+  console.error(`Failed to run '${selected}': ${error.message}`);
+  process.exitCode = 1;
+});
+
+child.once("exit", (code, signal) => {
+  cleanupSignalHandlers();
+  const terminalSignal = forwardedSignal ?? signal;
+  if (terminalSignal) {
+    process.kill(process.pid, terminalSignal);
+    return;
+  }
+  process.exitCode = code ?? 1;
+});
