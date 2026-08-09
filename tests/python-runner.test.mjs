@@ -1,5 +1,8 @@
 import assert from "node:assert/strict";
-import { spawnSync } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
+import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { test } from "node:test";
 import { fileURLToPath } from "node:url";
 
@@ -16,6 +19,15 @@ function findPython3() {
     }
   }
   return null;
+}
+
+async function waitForFile(path, timeoutMs = 5_000) {
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    if (existsSync(path)) return;
+    await new Promise((resolve) => setTimeout(resolve, 25));
+  }
+  throw new Error(`Timed out waiting for ${path}`);
 }
 
 test("run-python honors a valid PYTHON_BIN", () => {
@@ -38,4 +50,43 @@ test("run-python rejects an invalid explicit PYTHON_BIN", () => {
 
   assert.notEqual(result.status, 0);
   assert.match(result.stderr, /not a usable Python 3 executable/);
+});
+
+test("run-python forwards SIGTERM to a long-lived Python child", async () => {
+  const python = findPython3();
+  assert.ok(python, "test environment must provide Python 3");
+
+  const directory = mkdtempSync(join(tmpdir(), "solcontinuity-python-runner-"));
+  const marker = join(directory, "signal");
+  const script = [
+    "import signal, sys, time",
+    "marker = sys.argv[1]",
+    "open(marker + '.ready', 'w').write('ready')",
+    "def stop(signum, frame):",
+    "    open(marker + '.stopped', 'w').write(str(signum))",
+    "    raise SystemExit(0)",
+    "signal.signal(signal.SIGTERM, stop)",
+    "while True:",
+    "    time.sleep(0.1)"
+  ].join("\n");
+
+  const child = spawn(process.execPath, [runner, "-c", script, marker], {
+    env: { ...process.env, PYTHON_BIN: python },
+    stdio: "ignore"
+  });
+
+  try {
+    await waitForFile(`${marker}.ready`);
+    child.kill("SIGTERM");
+    const exit = await new Promise((resolve, reject) => {
+      child.once("error", reject);
+      child.once("exit", (code, signal) => resolve({ code, signal }));
+    });
+
+    assert.deepEqual(exit, { code: null, signal: "SIGTERM" });
+    assert.equal(readFileSync(`${marker}.stopped`, "utf8").length > 0, true);
+  } finally {
+    if (child.exitCode === null && child.signalCode === null) child.kill("SIGKILL");
+    rmSync(directory, { recursive: true, force: true });
+  }
 });
