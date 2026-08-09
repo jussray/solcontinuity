@@ -16,9 +16,9 @@
       "timeoutMs": 8000
     },
     {
-      "id": "ankr-public-devnet",
-      "provider": "Ankr",
-      "url": "https://rpc.ankr.com/solana_devnet",
+      "id": "helius-demo-devnet",
+      "provider": "Helius demo proxy",
+      "url": "https://demo.helius.dev/api/rpc?network=devnet",
       "timeoutMs": 8000
     },
     {
