@@ -1,0 +1,211 @@
+{
+  "schemaVersion": "1.0",
+  "projectId": "solcontinuity",
+  "repository": {
+    "provider": "github",
+    "identifier": "jussray/solcontinuity",
+    "defaultBranch": "main"
+  },
+  "verification": {
+    "requiredSignals": [
+      {
+        "id": "solcontinuity-control-room",
+        "name": "Verify SolContinuity Control Room",
+        "required": true
+      }
+    ],
+    "testCatalog": [
+      {
+        "id": "typecheck",
+        "name": "TypeScript typecheck",
+        "kind": "typecheck",
+        "signalId": "solcontinuity-control-room",
+        "required": true,
+        "command": "npm run typecheck",
+        "workflow": ".github/workflows/control-room.yml"
+      },
+      {
+        "id": "node-tests",
+        "name": "Built Node contract tests",
+        "kind": "unit",
+        "signalId": "solcontinuity-control-room",
+        "required": true,
+        "command": "npm run test:node",
+        "workflow": ".github/workflows/control-room.yml"
+      },
+      {
+        "id": "python-runner-contract",
+        "name": "Python runner compatibility",
+        "kind": "contract",
+        "signalId": "solcontinuity-control-room",
+        "required": true,
+        "command": "npm run test:runner",
+        "workflow": ".github/workflows/control-room.yml"
+      },
+      {
+        "id": "python-tests",
+        "name": "Python analytics tests",
+        "kind": "unit",
+        "signalId": "solcontinuity-control-room",
+        "required": true,
+        "command": "npm run test:python",
+        "workflow": ".github/workflows/control-room.yml"
+      },
+      {
+        "id": "dashboard-e2e",
+        "name": "Rendered dashboard E2E",
+        "kind": "e2e",
+        "signalId": "solcontinuity-control-room",
+        "required": true,
+        "command": "npm run test:e2e",
+        "workflow": ".github/workflows/control-room.yml"
+      },
+      {
+        "id": "external-consumer",
+        "name": "External package consumer smoke",
+        "kind": "integration",
+        "signalId": "solcontinuity-control-room",
+        "required": true,
+        "command": "npm run test:consumer",
+        "workflow": ".github/workflows/control-room.yml"
+      },
+      {
+        "id": "full-verify",
+        "name": "Canonical repository verification",
+        "kind": "contract",
+        "signalId": "solcontinuity-control-room",
+        "required": true,
+        "command": "npm run verify",
+        "workflow": ".github/workflows/control-room.yml"
+      }
+    ]
+  },
+  "capabilities": [
+    {
+      "id": "solana-resilience-sdk",
+      "description": "Application-layer resilience and censorship-resistance primitives exposed by the TypeScript package and API/CLI surfaces.",
+      "status": "active",
+      "evidencePaths": ["src/core", "src/api", "src/cli", "src/index.ts", "package.json"],
+      "requiredSignals": ["solcontinuity-control-room"],
+      "usageAssertions": [
+        {
+          "id": "canonical-verify-covers-sdk",
+          "path": "package.json",
+          "marker": "\"verify\": \"npm run typecheck && npm run test && npm run test:e2e && npm run test:consumer\"",
+          "description": "The canonical verification command covers static, contract, browser, and consumer paths."
+        }
+      ]
+    },
+    {
+      "id": "rendered-resilience-dashboard",
+      "description": "Rendered dashboard behavior is exercised by the repository's Python-driven E2E path rather than inferred from source code.",
+      "status": "active",
+      "evidencePaths": ["src/dashboard", "e2e/test_dashboard.py", "package.json"],
+      "requiredSignals": ["solcontinuity-control-room"],
+      "usageAssertions": [
+        {
+          "id": "control-room-runs-dashboard-e2e",
+          "path": ".github/workflows/control-room.yml",
+          "marker": "npm run verify",
+          "description": "The Control Room executes the canonical verify path containing dashboard E2E."
+        }
+      ]
+    },
+    {
+      "id": "external-consumer-compatibility",
+      "description": "Proves the built package can be consumed outside the repository workspace.",
+      "status": "active",
+      "evidencePaths": ["scripts/external-consumer-smoke.mjs", "package.json"],
+      "requiredSignals": ["solcontinuity-control-room"],
+      "usageAssertions": [
+        {
+          "id": "verify-includes-consumer-smoke",
+          "path": "package.json",
+          "marker": "npm run test:consumer",
+          "description": "Canonical verification includes the external consumer smoke."
+        }
+      ]
+    },
+    {
+      "id": "live-devnet-evidence",
+      "description": "Live Solana Devnet evidence is available as a separate founder-gated runtime witness and is intentionally excluded from automatic merge CI.",
+      "status": "planned",
+      "evidencePaths": ["scripts/live-devnet-evidence.mjs", "examples/resilience-manifest.json", "package.json"],
+      "requiredSignals": ["solcontinuity-control-room"],
+      "usageAssertions": [
+        {
+          "id": "devnet-command-exists",
+          "path": "package.json",
+          "marker": "\"evidence:devnet\"",
+          "description": "The repo exposes an explicit live Devnet evidence command."
+        },
+        {
+          "id": "devnet-is-not-auto-ci",
+          "path": "scripts/verify-control-room-contract.mjs",
+          "marker": "live Devnet evidence must remain outside automatic CI",
+          "description": "The Control Room fails if live Devnet mutation/evidence is silently folded into automatic CI."
+        }
+      ]
+    },
+    {
+      "id": "repo-local-solcontinuity-control-room",
+      "description": "Publishes only bounded repository/check/capability evidence to Founder Control Room while keeping raw logs and production authority local.",
+      "status": "active",
+      "evidencePaths": ["control-room.manifest.json", ".control-room/repository.manifest.json", "scripts/verify-control-room-contract.mjs", ".github/workflows/control-room.yml"],
+      "requiredSignals": ["solcontinuity-control-room"],
+      "usageAssertions": [
+        {
+          "id": "local-control-room-denies-private-content",
+          "path": "control-room.manifest.json",
+          "marker": "\"privateContentAllowed\": false",
+          "description": "Portfolio evidence forbids private content."
+        },
+        {
+          "id": "production-remains-founder-gated",
+          "path": "control-room.manifest.json",
+          "marker": "\"productionMutation\": \"separate-founder-gate\"",
+          "description": "Control Room integration cannot grant production mutation authority."
+        }
+      ]
+    }
+  ],
+  "buildAssist": {
+    "enabled": true,
+    "preferredBuilder": "codex",
+    "riskLevel": "medium"
+  },
+  "privacy": {
+    "allowlistedPacketFields": [
+      "projectId",
+      "repository.provider",
+      "repository.identifier",
+      "commitSha",
+      "branch",
+      "manifestHash",
+      "generatedAt",
+      "runner.provider",
+      "runner.runId",
+      "runner.detailsUrl",
+      "checks.id",
+      "checks.name",
+      "checks.required",
+      "checks.status",
+      "checks.detailsUrl",
+      "capabilities.id",
+      "capabilities.claimedStatus",
+      "capabilities.observedStatus",
+      "capabilities.evidencePaths",
+      "capabilities.usageAssertionIds",
+      "capabilities.failedUsageAssertionIds",
+      "capabilities.reason"
+    ],
+    "forbiddenData": [
+      "wallet private keys or seed phrases",
+      "provider credentials or API keys",
+      "raw RPC responses containing sensitive identifiers",
+      "raw workflow logs containing secrets",
+      "private user data",
+      "usage assertion marker text in runner packets"
+    ]
+  }
+}

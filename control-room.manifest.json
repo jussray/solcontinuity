@@ -1,0 +1,123 @@
+{
+  "schemaVersion": "1.0",
+  "repository": "jussray/solcontinuity",
+  "portfolioHub": "jussray/founder-control-room",
+  "role": "product-runtime-control-room",
+  "authority": {
+    "sourceOfTruth": "SolContinuity main, exact-head verify workflow, repo-native TypeScript/Python/browser/consumer tests, and separately gated live Devnet evidence",
+    "portfolioMode": "sanitized-read-only-observer",
+    "productionMutation": "separate-founder-gate"
+  },
+  "controlRoom": {
+    "localSurface": true,
+    "surfaces": [
+      "control-room.manifest.json",
+      ".control-room/repository.manifest.json",
+      "scripts/verify-control-room-contract.mjs",
+      ".github/workflows/control-room.yml",
+      ".github/workflows/ci.yml",
+      "package.json"
+    ],
+    "privateContentAllowed": false
+  },
+  "tests": {
+    "authority": "repo-native",
+    "aggregation": "sanitized-check-summary-to-founder-control-room",
+    "rawLogsAllowed": false,
+    "catalog": [
+      {
+        "id": "typecheck",
+        "name": "TypeScript typecheck",
+        "kind": "typecheck",
+        "command": "npm run typecheck",
+        "required": true,
+        "status": "active",
+        "evidencePaths": ["package.json", "tsconfig.json", "src"]
+      },
+      {
+        "id": "node-tests",
+        "name": "Built Node contract tests",
+        "kind": "unit",
+        "command": "npm run test:node",
+        "required": true,
+        "status": "active",
+        "evidencePaths": ["package.json", "tests", "src"]
+      },
+      {
+        "id": "python-runner-contract",
+        "name": "Python runner compatibility",
+        "kind": "contract",
+        "command": "npm run test:runner",
+        "required": true,
+        "status": "active",
+        "evidencePaths": ["package.json", "scripts/run-python.mjs", "tests/python-runner.test.mjs"]
+      },
+      {
+        "id": "python-tests",
+        "name": "Python analytics tests",
+        "kind": "unit",
+        "command": "npm run test:python",
+        "required": true,
+        "status": "active",
+        "evidencePaths": ["package.json", "python", "requirements-dev.txt"]
+      },
+      {
+        "id": "dashboard-e2e",
+        "name": "Rendered dashboard E2E",
+        "kind": "e2e",
+        "command": "npm run test:e2e",
+        "required": true,
+        "status": "active",
+        "evidencePaths": ["package.json", "e2e/test_dashboard.py", "src/dashboard"]
+      },
+      {
+        "id": "external-consumer",
+        "name": "External package consumer smoke",
+        "kind": "integration",
+        "command": "npm run test:consumer",
+        "required": true,
+        "status": "active",
+        "evidencePaths": ["package.json", "scripts/external-consumer-smoke.mjs"]
+      },
+      {
+        "id": "full-verify",
+        "name": "Canonical repository verification",
+        "kind": "contract",
+        "command": "npm run verify",
+        "required": true,
+        "status": "active",
+        "evidencePaths": ["package.json", ".github/workflows/ci.yml", ".github/workflows/control-room.yml"]
+      },
+      {
+        "id": "devnet-runtime-evidence",
+        "name": "Live Solana Devnet resilience evidence",
+        "kind": "deployment",
+        "command": "npm run evidence:devnet",
+        "required": true,
+        "status": "founder-gated",
+        "evidencePaths": ["package.json", "scripts/live-devnet-evidence.mjs", "examples/resilience-manifest.json"]
+      }
+    ]
+  },
+  "evidence": {
+    "status": "integrated",
+    "commit": "22d4d6c81e6829fc606961a569b0da47a9deb234",
+    "observedAt": "2026-08-09",
+    "proofRefs": [
+      ".github/workflows/ci.yml",
+      "package.json",
+      "test-results",
+      "playwright-report"
+    ]
+  },
+  "risk": {
+    "level": "medium",
+    "blockers": [
+      "The new repo-local Control Room itself is not proven until its exact-head workflow succeeds",
+      "Live Devnet evidence remains a separate founder-gated runtime witness and must not be inferred from local tests",
+      "Publishing a package, deploying a hosted API/dashboard, registering credentials, or any other production mutation remains a separate founder gate",
+      "A catalog entry is not a pass until its exact-head runner produces evidence"
+    ]
+  },
+  "nextGate": "Pass the exact-head Node 24 Control Room and canonical verify lanes, retain sanitized receipts, then run live Devnet evidence separately when launch authority is explicitly granted."
+}

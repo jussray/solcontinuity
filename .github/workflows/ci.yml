@@ -8,15 +8,29 @@ on:
 permissions:
   contents: read
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+  EXPECTED_HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+
 jobs:
   verify:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v4
+      - name: Check out exact head
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.EXPECTED_HEAD_SHA }}
+          persist-credentials: false
+      - name: Verify immutable head
+        shell: bash
+        run: |
+          actual="$(git rev-parse HEAD)"
+          printf 'expected=%s\nactual=%s\n' "$EXPECTED_HEAD_SHA" "$actual"
+          test "$actual" = "$EXPECTED_HEAD_SHA"
       - uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: 24
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
@@ -40,8 +54,9 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: verification-evidence
+          name: verification-evidence-${{ env.EXPECTED_HEAD_SHA }}
           path: |
             test-results/
             playwright-report/
           if-no-files-found: ignore
+          retention-days: 14

@@ -1,0 +1,110 @@
+name: Verify SolContinuity Control Room
+
+on:
+  pull_request:
+    paths:
+      - 'control-room.manifest.json'
+      - '.control-room/repository.manifest.json'
+      - 'scripts/verify-control-room-contract.mjs'
+      - '.github/workflows/control-room.yml'
+      - '.github/workflows/ci.yml'
+      - 'package.json'
+      - 'package-lock.json'
+      - 'requirements-dev.txt'
+      - 'setup.sh'
+      - 'src/**'
+      - 'tests/**'
+      - 'python/**'
+      - 'e2e/**'
+      - 'scripts/**'
+      - 'examples/resilience-manifest.json'
+  push:
+    branches: [main]
+    paths:
+      - 'control-room.manifest.json'
+      - '.control-room/repository.manifest.json'
+      - 'scripts/verify-control-room-contract.mjs'
+      - '.github/workflows/control-room.yml'
+      - '.github/workflows/ci.yml'
+      - 'package.json'
+      - 'package-lock.json'
+      - 'requirements-dev.txt'
+      - 'setup.sh'
+      - 'src/**'
+      - 'tests/**'
+      - 'python/**'
+      - 'e2e/**'
+      - 'scripts/**'
+      - 'examples/resilience-manifest.json'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+  EXPECTED_HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+  CONTROL_ROOM_REPORT_PATH: artifacts/solcontinuity-control-room.json
+
+jobs:
+  verify:
+    name: Verify SolContinuity Control Room
+    runs-on: ubuntu-22.04
+    timeout-minutes: 20
+    steps:
+      - name: Check out exact head
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.EXPECTED_HEAD_SHA }}
+          persist-credentials: false
+
+      - name: Verify immutable head
+        shell: bash
+        run: |
+          actual="$(git rev-parse HEAD)"
+          printf 'expected=%s\nactual=%s\n' "$EXPECTED_HEAD_SHA" "$actual"
+          test "$actual" = "$EXPECTED_HEAD_SHA"
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: requirements-dev.txt
+
+      - name: Install and prove python3-only setup path
+        shell: bash
+        run: |
+          set -euo pipefail
+          shim_dir="$RUNNER_TEMP/python3-only-path"
+          mkdir -p "$shim_dir"
+          printf '#!/usr/bin/env bash\necho "bare python alias must not be used" >&2\nexit 97\n' > "$shim_dir/python"
+          chmod +x "$shim_dir/python"
+          PATH="$shim_dir:$PATH" ./setup.sh
+
+      - name: Verify repo-local Control Room contract
+        run: node scripts/verify-control-room-contract.mjs
+
+      - name: Run canonical repository verification
+        shell: bash
+        run: |
+          set -euo pipefail
+          shim_dir="$RUNNER_TEMP/python3-only-path"
+          PATH="$shim_dir:$PATH" PYTHON_BIN=python3 npm run verify
+
+      - name: Retain sanitized Control Room evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: solcontinuity-control-room-${{ env.EXPECTED_HEAD_SHA }}
+          path: |
+            artifacts/solcontinuity-control-room.json
+            test-results/
+            playwright-report/
+          if-no-files-found: warn
+          retention-days: 14
