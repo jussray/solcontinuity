@@ -3,6 +3,7 @@ name: Verify SolContinuity Control Room
 on:
   pull_request:
     paths:
+      - 'AGENTS_FOUNDER_INTELLIGENCE.md'
       - 'control-room.manifest.json'
       - '.control-room/repository.manifest.json'
       - 'scripts/verify-control-room-contract.mjs'
@@ -21,6 +22,7 @@ on:
   push:
     branches: [main]
     paths:
+      - 'AGENTS_FOUNDER_INTELLIGENCE.md'
       - 'control-room.manifest.json'
       - '.control-room/repository.manifest.json'
       - 'scripts/verify-control-room-contract.mjs'
