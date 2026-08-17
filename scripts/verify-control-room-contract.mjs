@@ -2,6 +2,16 @@ import {access, mkdir, readFile, writeFile} from 'node:fs/promises';
 import path from 'node:path';
 
 const EXPECTED_REPOSITORY = 'jussray/solcontinuity';
+const REQUIRED_COMMANDS = [
+  '/goalfix',
+  '/ultrathink',
+  '/truthmode',
+  '/confess',
+  '/redteam',
+  '/lindymode',
+  '/ooda',
+  '/visualize',
+];
 const REQUIRED_SCRIPTS = new Map([
   ['typecheck', 'tsc -p tsconfig.json --noEmit'],
   ['test:node', 'npm run build && node --test dist/tests/*.test.js'],
@@ -38,6 +48,7 @@ const repositoryManifest = JSON.parse(await readFile('.control-room/repository.m
 const pkg = JSON.parse(await readFile('package.json', 'utf8'));
 const ciWorkflow = await readFile('.github/workflows/ci.yml', 'utf8');
 const controlWorkflow = await readFile('.github/workflows/control-room.yml', 'utf8');
+const founderIntelligence = await readFile('AGENTS_FOUNDER_INTELLIGENCE.md', 'utf8');
 const errors = [];
 
 if (manifest.schemaVersion !== '1.0') errors.push('control-room schemaVersion must be 1.0');
@@ -46,6 +57,22 @@ if (manifest.portfolioHub !== 'jussray/founder-control-room') errors.push('portf
 if (manifest.controlRoom?.privateContentAllowed !== false) errors.push('private Control Room content must be denied');
 if (manifest.tests?.rawLogsAllowed !== false) errors.push('raw logs must be denied from portfolio aggregation');
 if (repositoryManifest.repository?.identifier !== EXPECTED_REPOSITORY) errors.push('federation repository identifier drifted');
+
+for (const command of REQUIRED_COMMANDS) {
+  if (!founderIntelligence.includes(command)) errors.push(`Founder Intelligence command missing: ${command}`);
+}
+if (!founderIntelligence.includes('reasoning, planning, and routing modes only')) {
+  errors.push('portable commands must remain reasoning, planning, and routing modes only');
+}
+if (!founderIntelligence.includes('They never expand execution authority')) {
+  errors.push('portable commands must explicitly deny authority expansion');
+}
+if (!founderIntelligence.includes('Live Solana Devnet resilience evidence remains a separate founder-gated runtime witness')) {
+  errors.push('Founder Intelligence must keep live Devnet evidence separately founder-gated');
+}
+if (!founderIntelligence.includes('the stricter rule wins')) {
+  errors.push('Founder Intelligence must preserve stricter SolContinuity authority');
+}
 
 for (const [name, command] of REQUIRED_SCRIPTS) {
   if (pkg.scripts?.[name] !== command) errors.push(`package script ${name} drifted`);
@@ -57,6 +84,9 @@ if (!ciWorkflow.includes('EXPECTED_HEAD_SHA:')) errors.push('canonical CI must b
 if (!controlWorkflow.includes("node-version: '24'")) errors.push('Control Room workflow must run Node 24');
 if (!controlWorkflow.includes('python-version: "3.12"')) errors.push('Control Room workflow must pin Python 3.12');
 if (!controlWorkflow.includes('npm run verify')) errors.push('Control Room workflow must execute canonical npm verify');
+if (!controlWorkflow.includes("'AGENTS_FOUNDER_INTELLIGENCE.md'")) {
+  errors.push('Control Room workflow must watch the Founder Intelligence adapter');
+}
 if (controlWorkflow.includes('npm run evidence:devnet') || ciWorkflow.includes('npm run evidence:devnet')) {
   errors.push('live Devnet evidence must remain outside automatic CI');
 }
@@ -98,6 +128,7 @@ const report = {
   status: errors.length === 0 ? 'passed' : 'failed',
   generatedAt: new Date().toISOString(),
   runtime: {node: 24, python: '3.12'},
+  jussOsCommands: REQUIRED_COMMANDS,
   catalog: catalog.map((entry) => ({id: entry.id, kind: entry.kind, required: entry.required, status: entry.status})),
   devnetAutomatic: false,
   errors,
