@@ -57,10 +57,38 @@ def run() -> None:
         expect(page.get_by_text("does not alter Solana consensus", exact=False)).to_be_visible()
 
         page.get_by_role("button", name="Proof gates").click()
-        expect(page.get_by_text("Python analytics tests")).to_be_visible()
-        expect(page.get_by_text("Live Devnet multi-provider test")).to_be_visible()
-        expect(page.get_by_text("External developer self-host test")).to_be_visible()
-        expect(page.locator("#live-devnet-gate")).not_to_be_checked()
+        expect(page.get_by_text("Python analytics tests", exact=False)).to_be_visible()
+        expect(page.get_by_text("Live Devnet multi-provider test", exact=False)).to_be_visible()
+        expect(page.get_by_text("External developer self-host test", exact=False)).to_be_visible()
+        expect(page.locator("#proof-gate-summary")).to_contain_text("8 UNKNOWN")
+
+        static_gate_ids = [
+            "strict-typescript-gate",
+            "node-tests-gate",
+            "python-tests-gate",
+            "manifest-risk-gate",
+            "playwright-gate",
+            "package-self-host-gate",
+            "live-devnet-gate",
+            "external-self-host-gate",
+        ]
+        for gate_id in static_gate_ids:
+            gate = page.locator(f"#{gate_id}")
+            expect(gate).not_to_be_checked()
+            assert gate.evaluate("element => element.indeterminate") is True, f"{gate_id} must be UNKNOWN in static mode"
+            assert gate.get_attribute("data-state") == "unknown", f"{gate_id} must expose UNKNOWN state"
+
+        for state_id in [
+            "strict-typescript-state",
+            "node-tests-state",
+            "python-tests-state",
+            "manifest-risk-state",
+            "playwright-state",
+            "package-self-host-state",
+            "live-devnet-state",
+            "external-self-host-state",
+        ]:
+            expect(page.locator(f"#{state_id}")).to_have_text("UNKNOWN")
 
         page.wait_for_timeout(300)
 
