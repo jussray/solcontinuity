@@ -106,13 +106,14 @@ export function createSolContinuityServer(options: SolContinuityServerOptions = 
           latestEvidence,
           evidenceErrors: evidence.errors,
           proofGates: {
-            strictTypeScript: true,
-            nodeTests: true,
-            pythonTests: true,
-            playwright: true,
-            automatedPackageSelfHost: true,
-            liveDevnet: latestEvidence?.status === "passed",
-            externalSelfHost: false
+            strictTypeScript: null,
+            nodeTests: null,
+            pythonTests: null,
+            manifestRiskTests: null,
+            playwright: null,
+            automatedPackageSelfHost: null,
+            liveDevnet: latestEvidence?.status === "passed" ? true : null,
+            externalSelfHost: null
           }
         });
         return;

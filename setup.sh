@@ -33,7 +33,7 @@ log "Installing Python dependencies (requirements-dev.txt)"
 "$PYTHON_BIN" -m pip install -r requirements-dev.txt
 
 log "Installing Playwright Chromium"
-if [ "$(uname -s)" = "Linux" ]; then
+if [ "$(uname -s)" = "Linux" ] && [ "${PLAYWRIGHT_INSTALL_WITH_DEPS:-1}" != "0" ]; then
   "$PYTHON_BIN" -m playwright install --with-deps chromium
 else
   "$PYTHON_BIN" -m playwright install chromium

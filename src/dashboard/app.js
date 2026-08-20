@@ -11,7 +11,18 @@ const evidenceMode = document.getElementById("evidence-mode");
 const overviewEvidence = document.getElementById("overview-evidence");
 const evidenceSummary = document.getElementById("evidence-summary");
 const evidenceHistory = document.getElementById("evidence-history");
-const liveDevnetGate = document.getElementById("live-devnet-gate");
+const proofGateSummary = document.getElementById("proof-gate-summary");
+
+const proofGateElements = {
+  strictTypeScript: [document.getElementById("strict-typescript-gate"), document.getElementById("strict-typescript-state")],
+  nodeTests: [document.getElementById("node-tests-gate"), document.getElementById("node-tests-state")],
+  pythonTests: [document.getElementById("python-tests-gate"), document.getElementById("python-tests-state")],
+  manifestRiskTests: [document.getElementById("manifest-risk-gate"), document.getElementById("manifest-risk-state")],
+  playwright: [document.getElementById("playwright-gate"), document.getElementById("playwright-state")],
+  automatedPackageSelfHost: [document.getElementById("package-self-host-gate"), document.getElementById("package-self-host-state")],
+  liveDevnet: [document.getElementById("live-devnet-gate"), document.getElementById("live-devnet-state")],
+  externalSelfHost: [document.getElementById("external-self-host-gate"), document.getElementById("external-self-host-state")]
+};
 
 const sampleManifest = {
   schemaVersion: "1.0",
@@ -47,6 +58,36 @@ function activateTab(name) {
   tabs.forEach((button) => button.setAttribute("aria-selected", String(button.dataset.tab === name)));
   panels.forEach((panel) => panel.classList.toggle("hidden", panel.dataset.panel !== name));
   announcement.textContent = `Showing ${name}.`;
+}
+
+function setProofGate(key, value) {
+  const [input, state] = proofGateElements[key] || [];
+  if (!input || !state) return;
+
+  input.checked = value === true;
+  input.indeterminate = value == null;
+  input.dataset.state = value === true ? "verified" : value === false ? "not-verified" : "unknown";
+  state.textContent = value === true ? "VERIFIED" : value === false ? "NOT VERIFIED" : "UNKNOWN";
+}
+
+function applyProofGates(gates = {}) {
+  let verified = 0;
+  let notVerified = 0;
+  let unknown = 0;
+
+  Object.keys(proofGateElements).forEach((key) => {
+    const value = Object.prototype.hasOwnProperty.call(gates, key) ? gates[key] : null;
+    setProofGate(key, value);
+    if (value === true) verified += 1;
+    else if (value === false) notVerified += 1;
+    else unknown += 1;
+  });
+
+  const pieces = [];
+  if (verified) pieces.push(`${verified} verified`);
+  if (notVerified) pieces.push(`${notVerified} not verified`);
+  if (unknown) pieces.push(`${unknown} UNKNOWN`);
+  proofGateSummary.textContent = `${pieces.join(" · ")}. Only attached current evidence may verify a gate.`;
 }
 
 function providerName(endpoint) {
@@ -208,18 +249,19 @@ async function refreshOverview() {
     evidenceMode.textContent = "Evidence mode: static artifact";
     evidenceMode.classList.add("neutral");
     overviewEvidence.textContent = "Evidence: Static artifact mode. The console is interactive, but no backend or live-chain claim is being made.";
-    liveDevnetGate.checked = false;
+    applyProofGates();
     return;
   }
 
   try {
     const payload = await apiRequest("/api/overview");
+    const liveDevnetVerified = payload.proofGates?.liveDevnet === true;
     apiStatus.textContent = "Connected";
     analyticsStatus.textContent = payload.analyticsConfigured ? "Configured" : "Not configured";
-    evidenceMode.textContent = payload.proofGates?.liveDevnet ? "Evidence mode: live proof loaded" : "Evidence mode: backend connected";
-    evidenceMode.classList.toggle("neutral", !payload.proofGates?.liveDevnet);
-    overviewEvidence.textContent = `Evidence: ${payload.manifest} audit score ${payload.audit.score}/100. Boundary: ${payload.boundary}. Live Devnet proof: ${payload.proofGates?.liveDevnet ? "verified artifact loaded" : "not currently loaded"}.`;
-    liveDevnetGate.checked = Boolean(payload.proofGates?.liveDevnet);
+    evidenceMode.textContent = liveDevnetVerified ? "Evidence mode: live proof loaded" : "Evidence mode: backend connected";
+    evidenceMode.classList.toggle("neutral", !liveDevnetVerified);
+    overviewEvidence.textContent = `Evidence: ${payload.manifest} audit score ${payload.audit.score}/100. Boundary: ${payload.boundary}. Live Devnet proof: ${liveDevnetVerified ? "verified artifact loaded" : "not currently loaded"}.`;
+    applyProofGates(payload.proofGates || {});
     announcement.textContent = "Backend evidence refreshed.";
   } catch (error) {
     apiStatus.textContent = "Unavailable";
@@ -227,7 +269,7 @@ async function refreshOverview() {
     evidenceMode.textContent = "Evidence mode: fallback";
     evidenceMode.classList.add("neutral");
     overviewEvidence.textContent = `Evidence unavailable: ${error instanceof Error ? error.message : String(error)}`;
-    liveDevnetGate.checked = false;
+    applyProofGates();
     announcement.textContent = "Backend evidence unavailable; no live claim was made.";
   }
 }
@@ -313,5 +355,6 @@ document.getElementById("refresh-history").addEventListener("click", loadEvidenc
 renderProviderSamples();
 resetManifest();
 activateTab("overview");
+applyProofGates();
 refreshOverview();
 loadEvidenceHistory();

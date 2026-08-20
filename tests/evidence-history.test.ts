@@ -67,16 +67,28 @@ test("evidence history returns proof metadata without serialized transaction byt
   });
 });
 
-test("overview derives the live Devnet proof gate from the latest artifact", async () => {
+test("overview verifies only proof gates backed by attached evidence", async () => {
   await withEvidenceServer(async (baseUrl) => {
     const response = await fetch(`${baseUrl}/api/overview`);
     assert.equal(response.status, 200);
     const payload = await response.json() as {
-      readonly proofGates: { readonly liveDevnet: boolean };
+      readonly proofGates: Readonly<Record<string, boolean | null>>;
       readonly latestEvidence: { readonly status: string } | null;
     };
 
     assert.equal(payload.proofGates.liveDevnet, true);
     assert.equal(payload.latestEvidence?.status, "passed");
+
+    for (const gate of [
+      "strictTypeScript",
+      "nodeTests",
+      "pythonTests",
+      "manifestRiskTests",
+      "playwright",
+      "automatedPackageSelfHost",
+      "externalSelfHost"
+    ]) {
+      assert.equal(payload.proofGates[gate], null, `${gate} must stay UNKNOWN without an attached current receipt`);
+    }
   });
 });

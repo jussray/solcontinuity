@@ -108,15 +108,16 @@
 
     <section class="panel hidden" data-panel="proof">
       <h2>Proof before claim</h2>
+      <p id="proof-gate-summary" class="muted" role="status" aria-live="polite">Current proof receipts are not attached. Gates remain UNKNOWN until evidence is loaded.</p>
       <div class="proof-list">
-        <label><input type="checkbox" checked disabled /> TypeScript strict build</label>
-        <label><input type="checkbox" checked disabled /> Node API and core tests</label>
-        <label><input type="checkbox" checked disabled /> Python analytics tests</label>
-        <label><input type="checkbox" checked disabled /> Manifest risk tests</label>
-        <label><input type="checkbox" checked disabled /> Playwright console path</label>
-        <label><input id="package-self-host-gate" type="checkbox" checked disabled /> Automated clean-room package and self-host test</label>
-        <label><input id="live-devnet-gate" type="checkbox" disabled /> Live Devnet multi-provider test</label>
-        <label><input id="external-self-host-gate" type="checkbox" disabled /> External developer self-host test (independent human)</label>
+        <label><input id="strict-typescript-gate" type="checkbox" disabled /> TypeScript strict build · <span id="strict-typescript-state">UNKNOWN</span></label>
+        <label><input id="node-tests-gate" type="checkbox" disabled /> Node API and core tests · <span id="node-tests-state">UNKNOWN</span></label>
+        <label><input id="python-tests-gate" type="checkbox" disabled /> Python analytics tests · <span id="python-tests-state">UNKNOWN</span></label>
+        <label><input id="manifest-risk-gate" type="checkbox" disabled /> Manifest risk tests · <span id="manifest-risk-state">UNKNOWN</span></label>
+        <label><input id="playwright-gate" type="checkbox" disabled /> Playwright console path · <span id="playwright-state">UNKNOWN</span></label>
+        <label><input id="package-self-host-gate" type="checkbox" disabled /> Automated clean-room package and self-host test · <span id="package-self-host-state">UNKNOWN</span></label>
+        <label><input id="live-devnet-gate" type="checkbox" disabled /> Live Devnet multi-provider test · <span id="live-devnet-state">UNKNOWN</span></label>
+        <label><input id="external-self-host-gate" type="checkbox" disabled /> External developer self-host test (independent human) · <span id="external-self-host-state">UNKNOWN</span></label>
       </div>
       <aside class="callout"><strong>Next gate:</strong> prove an independent developer can deploy the recovery path and reproduce the evidence flow without founder assistance.</aside>
     </section>
