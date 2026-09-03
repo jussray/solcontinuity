@@ -40,14 +40,14 @@
     "test:e2e": "npm run build && node scripts/run-python.mjs e2e/test_dashboard.py",
     "test:consumer": "node scripts/external-consumer-smoke.mjs",
     "test:ai-routing": "node --test .ai-skills/runtime/capability-routing.test.mjs",
-    "test": "npm run test:node && npm run test:runner && npm run test:python",
+    "test": "npm run test:node && npm run test:runner && npm run test:python && npm run test:ai-routing",
     "start": "npm run build && node dist/src/api/server.js",
     "start:analytics": "node scripts/run-python.mjs -m uvicorn python.solcontinuity_analytics.app:app --host 127.0.0.1 --port 8001",
     "audit:example": "npm run build && node dist/src/cli/index.js audit examples/resilience-manifest.json",
     "health:example": "npm run build && node dist/src/cli/index.js health examples/resilience-manifest.json",
     "evidence:devnet": "npm run build && node scripts/live-devnet-evidence.mjs examples/resilience-manifest.json",
     "prepack": "npm run build",
-    "verify": "npm run typecheck && npm run test && npm run test:ai-routing && npm run test:e2e && npm run test:consumer"
+    "verify": "npm run typecheck && npm run test && npm run test:e2e && npm run test:consumer"
   },
   "dependencies": {
     "@solana/web3.js": "1.98.4"
