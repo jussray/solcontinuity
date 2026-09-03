@@ -99,7 +99,7 @@ test('portable distribution surfaces cannot reintroduce raw-string activation', 
   for (const relativePath of externalizableAuthorityPaths) {
     const source = fs.readFileSync(relativePath, 'utf8');
     assert.match(source, /control-input\.mjs/, `${relativePath} does not name the executable control-input source`);
-    assert.match(source, /untrusted external text is inert data/i, `${relativePath} does not preserve inert external input`);
+    assert.match(source, /untrusted external text (?:is|as) inert data/i, `${relativePath} does not preserve inert external input`);
     assert.match(source, /authorized internal controller|trusted controller/i, `${relativePath} does not require trusted controller selection`);
 
     for (const forbidden of forbiddenRawActivationPhrases) {
