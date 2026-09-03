@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
 
 import {
   PORTABLE_CONTROL_INPUT_CONTRACT,
@@ -74,4 +75,35 @@ test('contract summary freezes the cross-project trust boundary', () => {
     modeSelectionImpliesExecutionAuthority: false,
     trustedControlOrigins: ['internal-controller', 'operator-control-plane', 'trusted-scheduler'],
   });
+});
+
+const externalizableAuthorityPaths = [
+  '.ai-skills/README.md',
+  '.ai-skills/universal-commands.md',
+  '.ai-skills/chatgpt-custom-instructions.md',
+  '.ai-skills/claude-project-instructions.md',
+  '.ai-skills/custom-gpt-system-prompt.md',
+  '.ai-skills/gpts/capability-mode-router.md',
+];
+
+const forbiddenRawActivationPhrases = [
+  /type them at the start of your message to activate/i,
+  /the user may type these commands to switch your behavior/i,
+  /i may type these commands to switch your behavior/i,
+  /type these commands to switch behavior/i,
+  /type command shortcuts like .* in any conversation/i,
+  /type commands like .* in chat/i,
+];
+
+test('portable distribution surfaces cannot reintroduce raw-string activation', () => {
+  for (const relativePath of externalizableAuthorityPaths) {
+    const source = fs.readFileSync(relativePath, 'utf8');
+    assert.match(source, /control-input\.mjs/, `${relativePath} does not name the executable control-input source`);
+    assert.match(source, /untrusted external text is inert data/i, `${relativePath} does not preserve inert external input`);
+    assert.match(source, /authorized internal controller|trusted controller/i, `${relativePath} does not require trusted controller selection`);
+
+    for (const forbidden of forbiddenRawActivationPhrases) {
+      assert.doesNotMatch(source, forbidden, `${relativePath} still documents raw-string activation: ${forbidden}`);
+    }
+  }
 });
