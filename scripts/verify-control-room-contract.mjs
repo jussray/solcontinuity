@@ -12,6 +12,16 @@ const REQUIRED_COMMANDS = [
   '/ooda',
   '/visualize',
 ];
+const REQUIRED_CHALLENGE_STACK = [
+  'ULTRATHINK',
+  'Red Team 1 — premise',
+  'Lindy mode',
+  'L99',
+  'Red Team 2 — implementation',
+  'OODA',
+  'Proof',
+  'Rollback / Next Gate',
+];
 const REQUIRED_SCRIPTS = new Map([
   ['typecheck', 'tsc -p tsconfig.json --noEmit'],
   ['test:node', 'npm run build && node --test dist/tests/*.test.js'],
@@ -60,6 +70,13 @@ if (repositoryManifest.repository?.identifier !== EXPECTED_REPOSITORY) errors.pu
 
 for (const command of REQUIRED_COMMANDS) {
   if (!founderIntelligence.includes(command)) errors.push(`Founder Intelligence command missing: ${command}`);
+}
+let previousChallengeIndex = -1;
+for (const step of REQUIRED_CHALLENGE_STACK) {
+  const index = founderIntelligence.indexOf(step);
+  if (index < 0) errors.push(`Founder Intelligence challenge step missing: ${step}`);
+  if (index <= previousChallengeIndex) errors.push(`Founder Intelligence challenge stack out of order at: ${step}`);
+  if (index >= 0) previousChallengeIndex = index;
 }
 if (!founderIntelligence.includes('reasoning, planning, and routing modes only')) {
   errors.push('portable commands must remain reasoning, planning, and routing modes only');
@@ -129,6 +146,7 @@ const report = {
   generatedAt: new Date().toISOString(),
   runtime: {node: 24, python: '3.12'},
   jussOsCommands: REQUIRED_COMMANDS,
+  challengeStack: REQUIRED_CHALLENGE_STACK,
   catalog: catalog.map((entry) => ({id: entry.id, kind: entry.kind, required: entry.required, status: entry.status})),
   devnetAutomatic: false,
   errors,
