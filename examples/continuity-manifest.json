@@ -1,0 +1,43 @@
+{
+  "schemaVersion": "1.0",
+  "name": "Platform-neutral JSON-RPC continuity example",
+  "description": "Example manifest proving the continuity model is not coupled to Solana-specific fields.",
+  "platform": "evm",
+  "environment": "mainnet",
+  "sourceRepository": "https://github.com/jussray/solcontinuity",
+  "license": "Apache-2.0",
+  "targets": [
+    {
+      "id": "settlement-contract",
+      "kind": "contract",
+      "address": "0x0000000000000000000000000000000000000001"
+    }
+  ],
+  "routes": [
+    {
+      "id": "provider-a",
+      "provider": "operator-a",
+      "url": "https://a.example.org"
+    },
+    {
+      "id": "provider-b",
+      "provider": "operator-b",
+      "url": "https://b.example.org"
+    },
+    {
+      "id": "provider-c",
+      "provider": "operator-c",
+      "url": "https://c.example.org"
+    }
+  ],
+  "frontend": {
+    "primaryUrl": "https://app.example.org",
+    "recoveryUrl": "https://recovery.example.org",
+    "selfHostingGuide": "https://docs.example.org/self-host"
+  },
+  "dependencies": [],
+  "verification": {
+    "minimumRouteAgreement": 2,
+    "publishEvidence": true
+  }
+}

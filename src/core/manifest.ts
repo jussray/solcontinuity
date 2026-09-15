@@ -1,5 +1,5 @@
 import { ManifestValidationError } from "./errors.js";
-import type { DappManifest, RpcEndpointConfig } from "./types.js";
+import type { ContinuityManifest, ContinuityTarget, RpcEndpointConfig } from "./types.js";
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return value !== null && typeof value === "object" && !Array.isArray(value);
@@ -44,7 +44,7 @@ function parseEndpoint(value: unknown, path: string, issues: string[]): RpcEndpo
     headers?: Readonly<Record<string, string>>;
   } = { id, url };
 
-  if (typeof value.provider === "string") {
+  if (typeof value.provider === "string" && value.provider.trim() !== "") {
     endpoint.provider = value.provider;
   }
   if (typeof value.timeoutMs === "number" && Number.isFinite(value.timeoutMs) && value.timeoutMs > 0) {
@@ -63,7 +63,64 @@ function parseEndpoint(value: unknown, path: string, issues: string[]): RpcEndpo
   return endpoint;
 }
 
-export function parseManifest(value: unknown): DappManifest {
+function parseTarget(value: unknown, path: string, issues: string[]): ContinuityTarget | null {
+  if (!isRecord(value)) {
+    issues.push(`${path} must be an object.`);
+    return null;
+  }
+
+  const kinds = new Set(["program", "contract", "service", "resource", "other"]);
+  if (typeof value.id !== "string" || value.id.trim() === "") {
+    issues.push(`${path}.id must be a non-empty string.`);
+  }
+  if (typeof value.kind !== "string" || !kinds.has(value.kind)) {
+    issues.push(`${path}.kind must be program, contract, service, resource, or other.`);
+  }
+  if (value.address !== undefined && (typeof value.address !== "string" || value.address.trim() === "")) {
+    issues.push(`${path}.address must be a non-empty string when present.`);
+  }
+  if (value.url !== undefined && !isHttpUrl(value.url)) {
+    issues.push(`${path}.url must be an http(s) URL when present.`);
+  }
+  if (value.address === undefined && value.url === undefined) {
+    issues.push(`${path} must declare address or url.`);
+  }
+
+  if (
+    typeof value.id !== "string" ||
+    typeof value.kind !== "string" ||
+    !kinds.has(value.kind) ||
+    (value.address !== undefined && typeof value.address !== "string") ||
+    (value.url !== undefined && !isHttpUrl(value.url)) ||
+    (value.address === undefined && value.url === undefined)
+  ) {
+    return null;
+  }
+
+  return {
+    id: value.id,
+    kind: value.kind as ContinuityTarget["kind"],
+    ...(typeof value.address === "string" ? { address: value.address } : {}),
+    ...(typeof value.url === "string" ? { url: value.url } : {})
+  };
+}
+
+function equivalentRoutes(left: readonly RpcEndpointConfig[], right: readonly RpcEndpointConfig[]): boolean {
+  if (left.length !== right.length) {
+    return false;
+  }
+  return left.every((endpoint, index) => {
+    const other = right[index];
+    return Boolean(
+      other &&
+      endpoint.id === other.id &&
+      endpoint.url === other.url &&
+      (endpoint.provider ?? "") === (other.provider ?? "")
+    );
+  });
+}
+
+export function parseManifest(value: unknown): ContinuityManifest {
   const issues: string[] = [];
   if (!isRecord(value)) {
     throw new ManifestValidationError(["Manifest root must be an object."]);
@@ -79,10 +136,26 @@ export function parseManifest(value: unknown): DappManifest {
     issues.push("description must be a non-empty string.");
   }
 
-  const networks = new Set(["devnet", "testnet", "mainnet-beta", "localnet"]);
-  if (typeof value.network !== "string" || !networks.has(value.network)) {
-    issues.push("network must be devnet, testnet, mainnet-beta, or localnet.");
+  const legacySolanaShape =
+    typeof value.network === "string" || Array.isArray(value.programAddresses) || Array.isArray(value.rpcEndpoints);
+  const platform = typeof value.platform === "string" && value.platform.trim() !== ""
+    ? value.platform.trim()
+    : legacySolanaShape
+      ? "solana"
+      : "";
+  if (!platform) {
+    issues.push("platform must be a non-empty string for platform-neutral manifests.");
   }
+
+  const environment = typeof value.environment === "string" && value.environment.trim() !== ""
+    ? value.environment.trim()
+    : typeof value.network === "string" && value.network.trim() !== ""
+      ? value.network.trim()
+      : "";
+  if (!environment) {
+    issues.push("environment must be a non-empty string (legacy Solana manifests may use network).");
+  }
+
   if (!isHttpUrl(value.sourceRepository)) {
     issues.push("sourceRepository must be an http(s) URL.");
   }
@@ -90,20 +163,52 @@ export function parseManifest(value: unknown): DappManifest {
     issues.push("license must be a non-empty string.");
   }
 
-  const programAddresses = Array.isArray(value.programAddresses)
+  const explicitPrograms = Array.isArray(value.programAddresses)
     ? value.programAddresses.filter((item): item is string => typeof item === "string" && item.trim() !== "")
     : [];
-  if (!Array.isArray(value.programAddresses)) {
-    issues.push("programAddresses must be an array.");
+  if (value.programAddresses !== undefined && !Array.isArray(value.programAddresses)) {
+    issues.push("programAddresses must be an array when present.");
   }
 
-  const rpcEndpoints = Array.isArray(value.rpcEndpoints)
+  let targets: ContinuityTarget[] = [];
+  if (Array.isArray(value.targets)) {
+    targets = value.targets
+      .map((item, index) => parseTarget(item, `targets[${index}]`, issues))
+      .filter((item): item is ContinuityTarget => item !== null);
+  } else if (value.targets !== undefined) {
+    issues.push("targets must be an array when present.");
+  } else if (explicitPrograms.length > 0) {
+    targets = explicitPrograms.map((address, index) => ({
+      id: `program-${index + 1}`,
+      kind: "program",
+      address
+    }));
+  }
+
+  const parsedRoutes = Array.isArray(value.routes)
+    ? value.routes
+        .map((item, index) => parseEndpoint(item, `routes[${index}]`, issues))
+        .filter((item): item is RpcEndpointConfig => item !== null)
+    : null;
+  if (value.routes !== undefined && !Array.isArray(value.routes)) {
+    issues.push("routes must be an array when present.");
+  }
+
+  const parsedLegacyRoutes = Array.isArray(value.rpcEndpoints)
     ? value.rpcEndpoints
         .map((item, index) => parseEndpoint(item, `rpcEndpoints[${index}]`, issues))
         .filter((item): item is RpcEndpointConfig => item !== null)
-    : [];
-  if (!Array.isArray(value.rpcEndpoints) || rpcEndpoints.length === 0) {
-    issues.push("rpcEndpoints must contain at least one valid endpoint.");
+    : null;
+  if (value.rpcEndpoints !== undefined && !Array.isArray(value.rpcEndpoints)) {
+    issues.push("rpcEndpoints must be an array when present.");
+  }
+
+  if (parsedRoutes && parsedLegacyRoutes && !equivalentRoutes(parsedRoutes, parsedLegacyRoutes)) {
+    issues.push("routes and rpcEndpoints cannot disagree when both are present.");
+  }
+  const routes = parsedRoutes ?? parsedLegacyRoutes ?? [];
+  if (routes.length === 0) {
+    issues.push("routes must contain at least one valid endpoint (legacy manifests may use rpcEndpoints).");
   }
 
   if (!isRecord(value.frontend)) {
@@ -121,7 +226,7 @@ export function parseManifest(value: unknown): DappManifest {
   }
 
   const dependencies = Array.isArray(value.dependencies)
-    ? value.dependencies.filter((item): item is DappManifest["dependencies"][number] => {
+    ? value.dependencies.filter((item): item is ContinuityManifest["dependencies"][number] => {
         if (!isRecord(item)) {
           return false;
         }
@@ -142,16 +247,31 @@ export function parseManifest(value: unknown): DappManifest {
     issues.push("verification must be an object.");
   }
   const verificationRecord = isRecord(value.verification) ? value.verification : {};
+  const minimumRouteAgreement = typeof verificationRecord.minimumRouteAgreement === "number"
+    ? verificationRecord.minimumRouteAgreement
+    : verificationRecord.minimumRpcAgreement;
   if (
-    typeof verificationRecord.minimumRpcAgreement !== "number" ||
-    !Number.isInteger(verificationRecord.minimumRpcAgreement) ||
-    verificationRecord.minimumRpcAgreement < 1
+    typeof minimumRouteAgreement !== "number" ||
+    !Number.isInteger(minimumRouteAgreement) ||
+    minimumRouteAgreement < 1
   ) {
-    issues.push("verification.minimumRpcAgreement must be an integer of at least 1.");
+    issues.push("verification.minimumRouteAgreement must be an integer of at least 1 (legacy manifests may use minimumRpcAgreement).");
   }
+  if (
+    typeof verificationRecord.minimumRouteAgreement === "number" &&
+    typeof verificationRecord.minimumRpcAgreement === "number" &&
+    verificationRecord.minimumRouteAgreement !== verificationRecord.minimumRpcAgreement
+  ) {
+    issues.push("verification.minimumRouteAgreement and minimumRpcAgreement cannot disagree.");
+  }
+
   const commitments = new Set(["processed", "confirmed", "finalized"]);
-  if (typeof verificationRecord.commitment !== "string" || !commitments.has(verificationRecord.commitment)) {
-    issues.push("verification.commitment must be processed, confirmed, or finalized.");
+  const commitment = verificationRecord.commitment;
+  if (commitment !== undefined && (typeof commitment !== "string" || !commitments.has(commitment))) {
+    issues.push("verification.commitment must be processed, confirmed, or finalized when present.");
+  }
+  if (platform.toLowerCase() === "solana" && commitment === undefined) {
+    issues.push("verification.commitment is required for the Solana adapter.");
   }
   if (typeof verificationRecord.publishEvidence !== "boolean") {
     issues.push("verification.publishEvidence must be a boolean.");
@@ -161,15 +281,22 @@ export function parseManifest(value: unknown): DappManifest {
     throw new ManifestValidationError(issues);
   }
 
+  const programAddresses = explicitPrograms.length > 0
+    ? explicitPrograms
+    : targets
+        .filter((target) => target.kind === "program" && typeof target.address === "string")
+        .map((target) => target.address as string);
+
   return {
     schemaVersion: "1.0",
     name: value.name as string,
     description: value.description as string,
-    network: value.network as DappManifest["network"],
+    platform,
+    environment,
     sourceRepository: value.sourceRepository as string,
     license: value.license as string,
-    programAddresses,
-    rpcEndpoints,
+    targets,
+    routes,
     frontend: {
       primaryUrl: frontendRecord.primaryUrl as string,
       ...(typeof frontendRecord.recoveryUrl === "string"
@@ -181,9 +308,13 @@ export function parseManifest(value: unknown): DappManifest {
     },
     dependencies,
     verification: {
-      minimumRpcAgreement: verificationRecord.minimumRpcAgreement as number,
-      commitment: verificationRecord.commitment as DappManifest["verification"]["commitment"],
-      publishEvidence: verificationRecord.publishEvidence as boolean
-    }
+      minimumRouteAgreement: minimumRouteAgreement as number,
+      ...(typeof commitment === "string" ? { commitment: commitment as ContinuityManifest["verification"]["commitment"] } : {}),
+      publishEvidence: verificationRecord.publishEvidence as boolean,
+      minimumRpcAgreement: minimumRouteAgreement as number
+    },
+    network: typeof value.network === "string" ? value.network : environment,
+    programAddresses,
+    rpcEndpoints: routes
   };
 }

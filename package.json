@@ -2,7 +2,7 @@
   "name": "solcontinuity",
   "version": "0.1.0",
   "private": true,
-  "description": "Application-layer resilience and censorship-resistance tooling for Solana dApps.",
+  "description": "Application-layer continuity and resilience tooling for multi-provider JSON-RPC applications, with a first-class Solana adapter.",
   "type": "module",
   "main": "./dist/src/index.js",
   "types": "./dist/src/index.d.ts",
@@ -21,6 +21,7 @@
     "dist/src",
     "dist/dashboard",
     "examples/resilience-manifest.json",
+    "examples/continuity-manifest.json",
     "README.md",
     "docs/self-hosting.md"
   ],

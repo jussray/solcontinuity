@@ -13,7 +13,7 @@ async function loadManifest(path: string) {
 }
 
 function printUsage(): void {
-  console.log(`solcontinuity <command> <manifest>\n\nCommands:\n  audit   Audit declared resilience and recovery paths\n  health  Check RPC health and confirmed slots\n`);
+  console.log(`solcontinuity <command> <manifest>\n\nCommands:\n  audit   Audit declared routes, dependencies, evidence, and recovery paths\n  health  Run the Solana adapter health probe against normalized routes\n`);
 }
 
 async function main(): Promise<void> {
@@ -31,9 +31,23 @@ async function main(): Promise<void> {
     return;
   }
 
-  const client = new MultiRpcClient({ endpoints: manifest.rpcEndpoints });
+  if (manifest.platform.toLowerCase() !== "solana") {
+    console.error(
+      `The health command currently belongs to the Solana adapter; manifest platform is ${manifest.platform}. ` +
+      "Use the SDK request() API for platform-neutral JSON-RPC quorum reads."
+    );
+    process.exitCode = 2;
+    return;
+  }
+
+  const client = new MultiRpcClient({ endpoints: manifest.routes });
   const health = await client.healthCheck();
-  console.log(JSON.stringify({ manifest: manifest.name, network: manifest.network, health }, null, 2));
+  console.log(JSON.stringify({
+    manifest: manifest.name,
+    platform: manifest.platform,
+    environment: manifest.environment,
+    health
+  }, null, 2));
 }
 
 main().catch((error: unknown) => {
