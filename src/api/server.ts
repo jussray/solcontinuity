@@ -99,7 +99,7 @@ export function createSolContinuityServer(options: SolContinuityServerOptions = 
         const latestEvidence = evidence.records[0] ?? null;
         json(response, 200, {
           project: "SolContinuity",
-          boundary: "application-layer resilience",
+          boundary: "application-layer continuity",
           manifest: manifest.name,
           audit: report,
           analyticsConfigured: Boolean(analyticsUrl),
