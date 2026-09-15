@@ -58,6 +58,7 @@ const repositoryManifest = JSON.parse(await readFile('.control-room/repository.m
 const pkg = JSON.parse(await readFile('package.json', 'utf8'));
 const ciWorkflow = await readFile('.github/workflows/ci.yml', 'utf8');
 const controlWorkflow = await readFile('.github/workflows/control-room.yml', 'utf8');
+const liveWorkflow = await readFile('.github/workflows/live-devnet.yml', 'utf8');
 const founderIntelligence = await readFile('AGENTS_FOUNDER_INTELLIGENCE.md', 'utf8');
 const errors = [];
 
@@ -107,6 +108,21 @@ if (!controlWorkflow.includes("'AGENTS_FOUNDER_INTELLIGENCE.md'")) {
 if (controlWorkflow.includes('npm run evidence:devnet') || ciWorkflow.includes('npm run evidence:devnet')) {
   errors.push('live Devnet evidence must remain outside automatic CI');
 }
+if (!liveWorkflow.includes('workflow_dispatch:')) {
+  errors.push('live Devnet evidence must remain founder-dispatched');
+}
+if (liveWorkflow.includes('pull_request:') || liveWorkflow.includes('push:')) {
+  errors.push('live Devnet evidence must remain outside automatic CI');
+}
+if (!liveWorkflow.includes('EXPECTED_HEAD_SHA: ${{ github.sha }}') || !liveWorkflow.includes('ref: ${{ github.sha }}')) {
+  errors.push('live Devnet evidence must bind and check out the exact dispatched head');
+}
+if (!liveWorkflow.includes('Verify immutable head')) {
+  errors.push('live Devnet evidence must verify immutable head identity before runtime evidence');
+}
+if (!liveWorkflow.includes('node-version: 24')) {
+  errors.push('live Devnet evidence must run Node 24');
+}
 
 const catalog = Array.isArray(manifest.tests?.catalog) ? manifest.tests.catalog : [];
 if (catalog.length === 0) errors.push('Control Room catalog must not be empty');
@@ -127,6 +143,7 @@ for (const entry of catalog) {
 
 const devnet = catalog.find((entry) => entry.id === 'devnet-runtime-evidence');
 if (devnet?.status !== 'founder-gated') errors.push('live Devnet evidence must stay founder-gated');
+if (devnet?.required !== false) errors.push('live Devnet evidence must stay separate from automatic merge-required checks');
 
 const requiredSignalIds = new Set((repositoryManifest.verification?.requiredSignals ?? []).map((signal) => signal.id));
 if (!requiredSignalIds.has('solcontinuity-control-room')) errors.push('federation must require the SolContinuity Control Room signal');
