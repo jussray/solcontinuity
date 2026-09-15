@@ -1,4 +1,4 @@
-import type { AuditFinding, DappManifest, ManifestAuditReport, RiskSeverity } from "./types.js";
+import type { AuditFinding, ContinuityManifest, ManifestAuditReport, RiskSeverity } from "./types.js";
 
 interface CheckResult {
   readonly passed: boolean;
@@ -35,48 +35,50 @@ function hostname(value: string): string {
   }
 }
 
-export function auditManifest(manifest: DappManifest, generatedAt = new Date()): ManifestAuditReport {
-  const providers = manifest.rpcEndpoints.map((endpoint) => endpoint.provider ?? hostname(endpoint.url));
+export function auditManifest(manifest: ContinuityManifest, generatedAt = new Date()): ManifestAuditReport {
+  const providers = manifest.routes.map((endpoint) => endpoint.provider ?? hostname(endpoint.url));
   const uniqueProviders = new Set(providers.map((provider) => provider.toLowerCase()));
   const requiredDependencies = manifest.dependencies.filter((dependency) => dependency.required);
   const irreplaceableDependencies = requiredDependencies.filter((dependency) => !dependency.replacement);
+  const isSolana = manifest.platform.toLowerCase() === "solana";
+  const programTargets = manifest.targets.filter((target) => target.kind === "program" && target.address);
 
   const checks: CheckResult[] = [
-    manifest.rpcEndpoints.length >= 3
+    manifest.routes.length >= 3
       ? pass()
       : finding(
-          "rpc-count",
+          "route-count",
           "high",
-          "Insufficient RPC endpoint diversity",
-          `Manifest declares ${manifest.rpcEndpoints.length} RPC endpoint(s).`,
-          "Declare at least three independently operated endpoints for meaningful failover and comparison."
+          "Insufficient route diversity",
+          `Manifest declares ${manifest.routes.length} route(s).`,
+          "Declare at least three independently operated routes for meaningful failover and comparison."
         ),
     uniqueProviders.size >= 2
       ? pass()
       : finding(
-          "rpc-provider-concentration",
+          "route-provider-concentration",
           "critical",
-          "RPC endpoints share one provider",
+          "Routes share one provider",
           `Detected provider set: ${[...uniqueProviders].join(", ") || "none"}.`,
-          "Use endpoints controlled by at least two independent operators. Multiple URLs from one operator do not remove operator risk."
+          "Use routes controlled by at least two independent operators. Multiple URLs from one operator do not remove operator risk."
         ),
-    manifest.verification.minimumRpcAgreement >= 2
+    manifest.verification.minimumRouteAgreement >= 2
       ? pass()
       : finding(
           "minimum-agreement",
           "high",
           "Single-source verification is allowed",
-          `minimumRpcAgreement is ${manifest.verification.minimumRpcAgreement}.`,
-          "Require agreement from at least two independent endpoints for security-sensitive reads."
+          `minimumRouteAgreement is ${manifest.verification.minimumRouteAgreement}.`,
+          "Require agreement from at least two independent routes for security-sensitive reads."
         ),
-    manifest.verification.minimumRpcAgreement <= manifest.rpcEndpoints.length
+    manifest.verification.minimumRouteAgreement <= manifest.routes.length
       ? pass()
       : finding(
           "impossible-agreement",
           "critical",
           "Verification quorum is impossible",
-          `Agreement requires ${manifest.verification.minimumRpcAgreement}, but only ${manifest.rpcEndpoints.length} endpoint(s) exist.`,
-          "Lower the threshold or add independently operated endpoints."
+          `Agreement requires ${manifest.verification.minimumRouteAgreement}, but only ${manifest.routes.length} route(s) exist.`,
+          "Lower the threshold or add independently operated routes."
         ),
     manifest.frontend.recoveryUrl
       ? pass()
@@ -85,7 +87,7 @@ export function auditManifest(manifest: DappManifest, generatedAt = new Date()):
           "high",
           "No recovery interface is declared",
           "Only the primary frontend is listed.",
-          "Publish a minimal static recovery interface that can operate against the same on-chain programs."
+          "Publish a minimal recovery interface that can use the same continuity routes without the primary host."
         ),
     manifest.frontend.selfHostingGuide
       ? pass()
@@ -105,14 +107,23 @@ export function auditManifest(manifest: DappManifest, generatedAt = new Date()):
           "Manifest declares a proprietary license.",
           "Use a recognized open-source license compatible with independent deployment."
         ),
-    manifest.programAddresses.length > 0
+    manifest.targets.length > 0
       ? pass()
       : finding(
-          "program-addresses",
+          "targets",
           "medium",
-          "No program addresses are declared",
-          "Users cannot independently identify the on-chain programs used by the dApp.",
-          "Publish program addresses for each supported network."
+          "No protected targets are declared",
+          "The manifest does not identify the programs, contracts, services, or resources whose continuity is being protected.",
+          "Declare at least one continuity target so routes and recovery evidence have an explicit subject."
+        ),
+    !isSolana || programTargets.length > 0
+      ? pass()
+      : finding(
+          "solana-program-targets",
+          "medium",
+          "Solana adapter has no program target",
+          "The Solana platform is selected but no program address is declared as a continuity target.",
+          "Declare the on-chain program addresses used by the application."
         ),
     irreplaceableDependencies.length === 0
       ? pass()
@@ -121,7 +132,7 @@ export function auditManifest(manifest: DappManifest, generatedAt = new Date()):
           irreplaceableDependencies.some((dependency) => dependency.kind === "api") ? "critical" : "high",
           "Required dependencies have no replacement path",
           irreplaceableDependencies.map((dependency) => `${dependency.name} (${dependency.kind})`).join(", "),
-          "Document a replacement, export path, fallback, or recovery mode for each required off-chain dependency."
+          "Document a replacement, export path, fallback, or recovery mode for each required dependency."
         ),
     manifest.verification.publishEvidence
       ? pass()
@@ -130,7 +141,7 @@ export function auditManifest(manifest: DappManifest, generatedAt = new Date()):
           "low",
           "Verification evidence is not published",
           "publishEvidence is false.",
-          "Publish machine-readable audit and failure-test evidence so claims can be independently checked."
+          "Publish machine-readable audit and failure-test evidence so continuity claims can be independently checked."
         )
   ];
 

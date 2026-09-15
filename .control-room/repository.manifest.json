@@ -82,10 +82,31 @@
   },
   "capabilities": [
     {
-      "id": "solana-resilience-sdk",
-      "description": "Application-layer resilience and censorship-resistance primitives exposed by the TypeScript package and API/CLI surfaces.",
+      "id": "platform-neutral-continuity-core",
+      "description": "Application-layer continuity primitives for multi-provider JSON-RPC applications: normalized platform/environment/target/route manifests, provider-aware quorum, failover evidence, deterministic audit, recovery metadata, and clean-room package consumption.",
       "status": "active",
-      "evidencePaths": ["src/core", "src/api", "src/cli", "src/index.ts", "package.json"],
+      "evidencePaths": ["src/core", "src/api", "src/cli", "src/index.ts", "examples/continuity-manifest.json", "package.json"],
+      "requiredSignals": ["solcontinuity-control-room"],
+      "usageAssertions": [
+        {
+          "id": "generic-manifest-covered-by-canonical-verify",
+          "path": "tests/manifest-audit.test.ts",
+          "marker": "platform-neutral manifest supports a non-Solana JSON-RPC application",
+          "description": "Canonical Node verification exercises a non-Solana manifest through the normalized continuity core."
+        },
+        {
+          "id": "generic-api-path-covered",
+          "path": "tests/api.test.ts",
+          "marker": "audit endpoint accepts a platform-neutral manifest",
+          "description": "The Node API proves the same platform-neutral audit contract rather than only browser-local behavior."
+        }
+      ]
+    },
+    {
+      "id": "solana-resilience-sdk",
+      "description": "First-class Solana adapter behavior layered on the continuity core, including Devnet health, signed transaction broadcast, commitment-aware confirmation, and Solana-specific runtime evidence.",
+      "status": "active",
+      "evidencePaths": ["src/core", "scripts/live-devnet-evidence.mjs", "examples/resilience-manifest.json", "package.json"],
       "requiredSignals": ["solcontinuity-control-room"],
       "usageAssertions": [
         {
@@ -98,7 +119,7 @@
     },
     {
       "id": "rendered-resilience-dashboard",
-      "description": "Rendered dashboard behavior is exercised by the repository's Python-driven E2E path rather than inferred from source code.",
+      "description": "Rendered continuity-console behavior is exercised by the repository's Python-driven E2E path rather than inferred from source code.",
       "status": "active",
       "evidencePaths": ["src/dashboard", "e2e/test_dashboard.py", "package.json"],
       "requiredSignals": ["solcontinuity-control-room"],
@@ -113,7 +134,7 @@
     },
     {
       "id": "external-consumer-compatibility",
-      "description": "Proves the built package can be consumed outside the repository workspace.",
+      "description": "Proves the built package can be consumed outside the repository workspace and rejects packaged repository metadata, evidence, environment, credential, secret, and token paths.",
       "status": "active",
       "evidencePaths": ["scripts/external-consumer-smoke.mjs", "package.json"],
       "requiredSignals": ["solcontinuity-control-room"],
@@ -128,7 +149,7 @@
     },
     {
       "id": "live-devnet-evidence",
-      "description": "Live Solana Devnet evidence is available as a separate founder-gated runtime witness and is intentionally excluded from automatic merge CI.",
+      "description": "Live Solana Devnet adapter evidence is available as a separate founder-gated runtime witness and is intentionally excluded from automatic merge CI.",
       "status": "planned",
       "evidencePaths": ["scripts/live-devnet-evidence.mjs", "examples/resilience-manifest.json", "package.json"],
       "requiredSignals": ["solcontinuity-control-room"],

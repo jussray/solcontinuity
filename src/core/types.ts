@@ -75,15 +75,25 @@ export interface TransactionVerification {
   readonly commitment: Commitment;
 }
 
-export interface DappManifest {
+export type ContinuityTargetKind = "program" | "contract" | "service" | "resource" | "other";
+
+export interface ContinuityTarget {
+  readonly id: string;
+  readonly kind: ContinuityTargetKind;
+  readonly address?: string;
+  readonly url?: string;
+}
+
+export interface ContinuityManifest {
   readonly schemaVersion: "1.0";
   readonly name: string;
   readonly description: string;
-  readonly network: "devnet" | "testnet" | "mainnet-beta" | "localnet";
+  readonly platform: string;
+  readonly environment: string;
   readonly sourceRepository: string;
   readonly license: string;
-  readonly programAddresses: readonly string[];
-  readonly rpcEndpoints: readonly RpcEndpointConfig[];
+  readonly targets: readonly ContinuityTarget[];
+  readonly routes: readonly RpcEndpointConfig[];
   readonly frontend: {
     readonly primaryUrl: string;
     readonly recoveryUrl?: string;
@@ -96,11 +106,22 @@ export interface DappManifest {
     readonly replacement?: string;
   }[];
   readonly verification: {
-    readonly minimumRpcAgreement: number;
-    readonly commitment: Commitment;
+    readonly minimumRouteAgreement: number;
+    readonly commitment?: Commitment;
     readonly publishEvidence: boolean;
+    /** @deprecated Compatibility alias for legacy Solana manifests. */
+    readonly minimumRpcAgreement?: number;
   };
+  /** @deprecated Use environment. Preserved for legacy Solana manifests. */
+  readonly network?: string;
+  /** @deprecated Use targets. Preserved for legacy Solana manifests. */
+  readonly programAddresses?: readonly string[];
+  /** @deprecated Use routes. Preserved for legacy manifests. */
+  readonly rpcEndpoints?: readonly RpcEndpointConfig[];
 }
+
+/** @deprecated Use ContinuityManifest. */
+export type DappManifest = ContinuityManifest;
 
 export type RiskSeverity = "critical" | "high" | "medium" | "low" | "info";
 
