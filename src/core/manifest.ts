@@ -309,7 +309,9 @@ export function parseManifest(value: unknown): ContinuityManifest {
     dependencies,
     verification: {
       minimumRouteAgreement: minimumRouteAgreement as number,
-      ...(typeof commitment === "string" ? { commitment: commitment as ContinuityManifest["verification"]["commitment"] } : {}),
+      ...(typeof commitment === "string"
+        ? { commitment: commitment as NonNullable<ContinuityManifest["verification"]["commitment"]> }
+        : {}),
       publishEvidence: verificationRecord.publishEvidence as boolean,
       minimumRpcAgreement: minimumRouteAgreement as number
     },
