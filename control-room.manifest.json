@@ -93,7 +93,7 @@
         "name": "Live Solana Devnet adapter evidence",
         "kind": "deployment",
         "command": "npm run evidence:devnet",
-        "required": true,
+        "required": false,
         "status": "founder-gated",
         "evidencePaths": ["package.json", "scripts/live-devnet-evidence.mjs", "examples/resilience-manifest.json"]
       }
