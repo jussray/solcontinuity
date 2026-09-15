@@ -29,6 +29,31 @@ const validManifest = {
   verification: { minimumRpcAgreement: 2, commitment: "confirmed", publishEvidence: true }
 };
 
+const genericManifest = {
+  schemaVersion: "1.0",
+  name: "Generic JSON-RPC API Test",
+  description: "A platform-neutral continuity manifest.",
+  platform: "evm",
+  environment: "mainnet",
+  sourceRepository: "https://github.com/jussray/solcontinuity",
+  license: "Apache-2.0",
+  targets: [
+    { id: "settlement-contract", kind: "contract", address: "0x0000000000000000000000000000000000000001" }
+  ],
+  routes: [
+    { id: "a", provider: "operator-a", url: "https://a.example.org" },
+    { id: "b", provider: "operator-b", url: "https://b.example.org" },
+    { id: "c", provider: "operator-c", url: "https://c.example.org" }
+  ],
+  frontend: {
+    primaryUrl: "https://app.example.org",
+    recoveryUrl: "https://recovery.example.org",
+    selfHostingGuide: "https://docs.example.org/self-host"
+  },
+  dependencies: [],
+  verification: { minimumRouteAgreement: 2, publishEvidence: true }
+};
+
 async function withServer(run: (baseUrl: string) => Promise<void>): Promise<void> {
   const root = await mkdtemp(join(tmpdir(), "solcontinuity-api-"));
   await writeFile(join(root, "index.html"), "<h1>SolContinuity</h1>", "utf8");
@@ -60,12 +85,36 @@ test("health endpoint exposes service state", async () => {
   });
 });
 
+test("overview exposes the standalone continuity boundary", async () => {
+  await withServer(async (baseUrl) => {
+    const response = await fetch(`${baseUrl}/api/overview`);
+    assert.equal(response.status, 200);
+    const payload = (await response.json()) as { project: string; boundary: string };
+    assert.equal(payload.project, "SolContinuity");
+    assert.equal(payload.boundary, "application-layer continuity");
+  });
+});
+
 test("audit endpoint uses the same typed core as the CLI", async () => {
   await withServer(async (baseUrl) => {
     const response = await fetch(`${baseUrl}/api/audit`, {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify(validManifest)
+    });
+    assert.equal(response.status, 200);
+    const payload = (await response.json()) as { score: number; findings: unknown[] };
+    assert.equal(payload.score, 100);
+    assert.deepEqual(payload.findings, []);
+  });
+});
+
+test("audit endpoint accepts a platform-neutral manifest", async () => {
+  await withServer(async (baseUrl) => {
+    const response = await fetch(`${baseUrl}/api/audit`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(genericManifest)
     });
     assert.equal(response.status, 200);
     const payload = (await response.json()) as { score: number; findings: unknown[] };
