@@ -50,12 +50,14 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p test-results
-          status=0
-          npm audit --json > test-results/npm-audit.json || status=$?
+          full_status=0
+          production_status=0
+          npm audit --json > test-results/npm-audit-full.json || full_status=$?
+          npm audit --omit=dev --json > test-results/npm-audit-production.json || production_status=$?
           cp package-lock.json test-results/package-lock.generated.json
-          if [ "$status" -gt 1 ]; then
-            echo "npm audit failed operationally with exit code $status" >&2
-            exit "$status"
+          if [ "$full_status" -gt 1 ] || [ "$production_status" -gt 1 ]; then
+            echo "npm audit failed operationally (full=$full_status production=$production_status)" >&2
+            exit 2
           fi
       - name: Verify with python alias blocked
         shell: bash
