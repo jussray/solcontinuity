@@ -26,16 +26,19 @@ const proofGateElements = {
 
 const sampleManifest = {
   schemaVersion: "1.0",
-  name: "SolContinuity Devnet Reference",
-  description: "Reference application-layer resilience manifest.",
-  network: "devnet",
+  name: "Platform-neutral JSON-RPC reference",
+  description: "Reference application-layer continuity manifest.",
+  platform: "evm",
+  environment: "mainnet",
   sourceRepository: "https://github.com/jussray/solcontinuity",
   license: "Apache-2.0",
-  programAddresses: ["11111111111111111111111111111111"],
-  rpcEndpoints: [
-    { id: "solana-public-devnet", provider: "Solana public RPC", url: "https://api.devnet.solana.com" },
-    { id: "onfinality-public-devnet", provider: "OnFinality", url: "https://solana-devnet.api.onfinality.io/public" },
-    { id: "triton-public-devnet", provider: "Triton One", url: "https://api.devnet.rpcpool.com" }
+  targets: [
+    { id: "settlement-contract", kind: "contract", address: "0x0000000000000000000000000000000000000001" }
+  ],
+  routes: [
+    { id: "provider-a", provider: "Operator A", url: "https://a.example.org" },
+    { id: "provider-b", provider: "Operator B", url: "https://b.example.org" },
+    { id: "provider-c", provider: "Operator C", url: "https://c.example.org" }
   ],
   frontend: {
     primaryUrl: "https://app.example.org",
@@ -45,13 +48,13 @@ const sampleManifest = {
   dependencies: [
     { name: "Evidence storage", kind: "storage", required: true, replacement: "Portable evidence bundle" }
   ],
-  verification: { minimumRpcAgreement: 2, commitment: "confirmed", publishEvidence: true }
+  verification: { minimumRouteAgreement: 2, publishEvidence: true }
 };
 
 const sampleProviders = [
-  { endpoint_id: "solana-public-devnet", operator: "Solana public RPC", healthy: true, latency_ms: 175, agrees_with_majority: true },
-  { endpoint_id: "onfinality-public-devnet", operator: "OnFinality", healthy: true, latency_ms: 240, agrees_with_majority: true },
-  { endpoint_id: "triton-public-devnet", operator: "Triton One", healthy: false, latency_ms: 1600, agrees_with_majority: false }
+  { endpoint_id: "provider-a", operator: "Operator A", healthy: true, latency_ms: 175, agrees_with_majority: true },
+  { endpoint_id: "provider-b", operator: "Operator B", healthy: true, latency_ms: 240, agrees_with_majority: true },
+  { endpoint_id: "provider-c", operator: "Operator C", healthy: false, latency_ms: 1600, agrees_with_majority: false }
 ];
 
 function activateTab(name) {
@@ -101,17 +104,30 @@ function providerName(endpoint) {
 
 function localAudit(manifest) {
   const findings = [];
-  const endpoints = Array.isArray(manifest.rpcEndpoints) ? manifest.rpcEndpoints : [];
-  const providers = new Set(endpoints.map(providerName));
-  if (endpoints.length < 3) findings.push("HIGH: fewer than three RPC endpoints");
-  if (providers.size < 2) findings.push("CRITICAL: RPC provider concentration");
+  const routes = Array.isArray(manifest.routes)
+    ? manifest.routes
+    : Array.isArray(manifest.rpcEndpoints)
+      ? manifest.rpcEndpoints
+      : [];
+  const providers = new Set(routes.map(providerName));
+  const minimumAgreement = manifest.verification?.minimumRouteAgreement ?? manifest.verification?.minimumRpcAgreement ?? 0;
+  const targets = Array.isArray(manifest.targets)
+    ? manifest.targets
+    : Array.isArray(manifest.programAddresses)
+      ? manifest.programAddresses.map((address, index) => ({ id: `program-${index + 1}`, kind: "program", address }))
+      : [];
+
+  if (routes.length < 3) findings.push("HIGH: fewer than three independent routes");
+  if (providers.size < 2) findings.push("CRITICAL: route provider concentration");
+  if (!targets.length) findings.push("MEDIUM: no continuity targets declared");
   if (!manifest.frontend?.recoveryUrl) findings.push("HIGH: no recovery frontend");
   if (!manifest.frontend?.selfHostingGuide) findings.push("MEDIUM: no self-hosting guide");
-  if ((manifest.verification?.minimumRpcAgreement || 0) < 2) findings.push("HIGH: single-source verification allowed");
+  if (minimumAgreement < 2) findings.push("HIGH: single-source verification allowed");
+  if (minimumAgreement > routes.length) findings.push("CRITICAL: impossible route agreement threshold");
   const irreplaceable = (manifest.dependencies || []).filter((item) => item.required && !item.replacement);
   if (irreplaceable.length) findings.push(`CRITICAL: ${irreplaceable.length} required dependency path(s) lack replacements`);
   const score = Math.max(0, 100 - findings.reduce((total, item) => total + (item.startsWith("CRITICAL") ? 30 : item.startsWith("HIGH") ? 20 : 10), 0));
-  return { score, findingCount: findings.length, findings: findings.length ? findings : ["PASS: no modeled resilience findings"], source: "offline-browser-model" };
+  return { score, findingCount: findings.length, findings: findings.length ? findings : ["PASS: no modeled continuity findings"], source: "offline-browser-model" };
 }
 
 function localProviderScore(observations) {
@@ -209,8 +225,8 @@ function renderEvidenceRecord(record) {
 
 function renderStaticEvidenceMode() {
   evidenceHistory.replaceChildren();
-  evidenceSummary.textContent = "Live evidence history requires the SolContinuity API. Static recovery mode makes no live-chain claim.";
-  evidenceHistory.append(textElement("div", "evidence-empty", "The recovery console remains usable for audits and provider modeling without claiming current blockchain state."));
+  evidenceSummary.textContent = "Live adapter evidence requires the SolContinuity API. Static recovery mode makes no live-chain claim.";
+  evidenceHistory.append(textElement("div", "evidence-empty", "The recovery console remains usable for platform-neutral audits and provider modeling without claiming current blockchain state."));
 }
 
 async function loadEvidenceHistory() {
