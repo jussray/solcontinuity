@@ -34,7 +34,7 @@ const consumerSource = [
   '  return new Response(JSON.stringify({',
   '    jsonrpc: "2.0",',
   '    id: request.id,',
-  '    result: "devnet-genesis"',
+  '    result: "stable"',
   '  }), {',
   '    status: 200,',
   '    headers: { "content-type": "application/json" }',
@@ -49,12 +49,12 @@ const consumerSource = [
   '  fetchImpl',
   '});',
   '',
-  'const quorum = await client.request("getGenesisHash", [], {',
+  'const quorum = await client.request("example_getState", [], {',
   '  mode: "quorum",',
   '  minimumAgreement: 2,',
   '  minimumProviderAgreement: 2',
   '});',
-  'assert.equal(quorum.value, "devnet-genesis");',
+  'assert.equal(quorum.value, "stable");',
   'assert.equal(quorum.evidence.agreementCount, 2);',
   'assert.equal(quorum.evidence.providerAgreementCount, 2);',
   '',
@@ -79,7 +79,7 @@ const consumerSource = [
   '  assert.equal(overviewResponse.status, 200);',
   '  const overview = await overviewResponse.json();',
   '  assert.equal(overview.project, "SolContinuity");',
-  '  assert.equal(overview.boundary, "application-layer resilience");',
+  '  assert.equal(overview.boundary, "application-layer continuity");',
   '',
   '  const consoleResponse = await fetch(baseUrl);',
   '  assert.equal(consoleResponse.status, 200);',
@@ -88,6 +88,7 @@ const consumerSource = [
   '',
   '  console.log(JSON.stringify({',
   '    quorum: {',
+  '      method: "example_getState",',
   '      value: quorum.value,',
   '      agreementCount: quorum.evidence.agreementCount,',
   '      providerAgreementCount: quorum.evidence.providerAgreementCount',
@@ -121,13 +122,30 @@ try {
     "dist/src/api/server.js",
     "dist/src/api/server.d.ts",
     "dist/dashboard/index.html",
-    "examples/resilience-manifest.json"
+    "examples/resilience-manifest.json",
+    "examples/continuity-manifest.json"
   ]) {
     assert.ok(packagedPaths.includes(requiredPath), `Missing packaged path: ${requiredPath}`);
   }
-  assert.ok(!packagedPaths.some((path) => path.startsWith("dist/tests/")), "Compiled tests must not ship in the package.");
-  assert.ok(!packagedPaths.some((path) => path.startsWith("test-results/")), "Runtime evidence must not ship in the package.");
-  assert.ok(!packagedPaths.some((path) => path.includes(".env")), "Environment files must not ship in the package.");
+
+  const forbiddenPrefixes = [
+    ".git/",
+    ".github/",
+    ".ai-skills/",
+    "prompts/",
+    "test-results/",
+    "playwright-report/",
+    "dist/tests/"
+  ];
+  const forbiddenName = /(^|\/)(\.env(?:\.|$)|\.npmrc$|[^/]*\.(?:pem|key|p12|pfx)$|[^/]*(?:credential|secret|token)[^/]*)/i;
+  const leakedPaths = packagedPaths.filter((path) =>
+    forbiddenPrefixes.some((prefix) => path.startsWith(prefix)) || forbiddenName.test(path)
+  );
+  assert.deepEqual(
+    leakedPaths,
+    [],
+    `Package contains forbidden repository, evidence, credential, secret, token, environment, or internal-metadata paths: ${leakedPaths.join(", ")}`
+  );
 
   await writeFile(join(consumerDirectory, "package.json"), JSON.stringify({
     name: "solcontinuity-clean-room-consumer",
@@ -149,10 +167,11 @@ try {
       version: packageInfo.version,
       filename: packageInfo.filename,
       fileCount: packagedPaths.length,
-      unpackedSize: packageInfo.unpackedSize
+      unpackedSize: packageInfo.unpackedSize,
+      forbiddenPathScan: "passed"
     },
     cleanRoom: consumerResult,
-    boundary: "Automated clean-room packaging proves installability and self-host startup, not adoption by an independent human developer."
+    boundary: "Automated clean-room packaging proves installability, platform-neutral JSON-RPC quorum consumption, package-path hygiene, and self-host startup, not adoption by an independent human developer."
   };
   await mkdir(dirname(ARTIFACT_PATH), { recursive: true });
   await writeFile(ARTIFACT_PATH, `${JSON.stringify(evidence, null, 2)}\n`);
