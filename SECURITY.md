@@ -1,6 +1,6 @@
 # Security policy
 
-SolContinuity handles infrastructure evidence and may eventually route signed Solana transactions. Security reports should avoid including private keys, seed phrases, RPC credentials, or live exploit details in public issues.
+SolContinuity handles infrastructure evidence and platform-specific adapters may route signed transactions. The first shipping transaction path is the Solana adapter. Security reports should avoid including private keys, seed phrases, provider credentials, API keys, signed transaction material, or live exploit details in public issues.
 
 ## Supported version
 
@@ -12,4 +12,4 @@ Open a minimal private security report through GitHub Security Advisories when a
 
 ## Non-goals and boundaries
 
-SolContinuity improves application-layer resilience. It does not alter Solana consensus, certify provider honesty, custody keys, or guarantee universal transaction inclusion.
+SolContinuity improves application-layer continuity. It does not alter any network's consensus, certify provider honesty, custody keys, or guarantee universal transaction inclusion. The Solana adapter does not alter Solana consensus.
