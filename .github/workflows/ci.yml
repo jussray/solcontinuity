@@ -45,6 +45,18 @@ jobs:
           printf '#!/usr/bin/env bash\necho "bare python alias must not be used" >&2\nexit 97\n' > "$shim_dir/python"
           chmod +x "$shim_dir/python"
           PATH="$shim_dir:$PATH" ./setup.sh
+      - name: Capture dependency audit evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p test-results
+          status=0
+          npm audit --json > test-results/npm-audit.json || status=$?
+          cp package-lock.json test-results/package-lock.generated.json
+          if [ "$status" -gt 1 ]; then
+            echo "npm audit failed operationally with exit code $status" >&2
+            exit "$status"
+          fi
       - name: Verify with python alias blocked
         shell: bash
         run: |
