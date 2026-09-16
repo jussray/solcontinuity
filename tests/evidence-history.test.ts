@@ -5,7 +5,7 @@ import { join } from "node:path";
 import test from "node:test";
 import { createSolContinuityServer } from "../src/api/server.js";
 
-async function withEvidenceServer(run: (baseUrl: string) => Promise<void>): Promise<void> {
+async function withEvidenceServer(run: (baseUrl: string, root: string) => Promise<void>): Promise<void> {
   const root = await mkdtemp(join(tmpdir(), "solcontinuity-evidence-"));
   const dashboardRoot = join(root, "dashboard");
   const manifestPath = join(root, "manifest.json");
@@ -22,6 +22,13 @@ async function withEvidenceServer(run: (baseUrl: string) => Promise<void>): Prom
   ) as Record<string, unknown>;
   const transaction = artifact.transaction as Record<string, unknown>;
   transaction.transactionBase64 = "signed-payload-must-not-leak";
+  artifact.providerSelection = [
+    {
+      id: "private-route",
+      provider: "Private Provider",
+      url: "https://rpc.example.invalid/private-account?api-key=credential-must-not-leak"
+    }
+  ];
   await writeFile(evidencePath, JSON.stringify(artifact), "utf8");
 
   const server = createSolContinuityServer({
@@ -37,7 +44,7 @@ async function withEvidenceServer(run: (baseUrl: string) => Promise<void>): Prom
   assert.ok(address && typeof address === "object");
 
   try {
-    await run(`http://127.0.0.1:${address.port}`);
+    await run(`http://127.0.0.1:${address.port}`, root);
   } finally {
     await new Promise<void>((resolve, reject) => {
       server.close((error) => error ? reject(error) : resolve());
@@ -46,24 +53,32 @@ async function withEvidenceServer(run: (baseUrl: string) => Promise<void>): Prom
   }
 }
 
-test("evidence history returns proof metadata without serialized transaction bytes", async () => {
-  await withEvidenceServer(async (baseUrl) => {
+test("evidence history returns proof metadata without private evidence material", async () => {
+  await withEvidenceServer(async (baseUrl, root) => {
     const response = await fetch(`${baseUrl}/api/evidence/history`);
     assert.equal(response.status, 200);
     const payload = await response.json() as {
       readonly records: readonly {
+        readonly sourcePath: string;
         readonly status: string;
+        readonly providerSelection: readonly { readonly url: string | null }[];
         readonly transaction: { readonly signature: string | null };
       }[];
     };
 
     assert.equal(payload.records[0]?.status, "passed");
+    assert.equal(payload.records[0]?.sourcePath, "evidence.json");
+    assert.equal(payload.records[0]?.providerSelection[0]?.url, "https://rpc.example.invalid");
     assert.equal(
       payload.records[0]?.transaction.signature,
       "35hZLJzN7Bro33Ztg7nKmrUNCrKPyfkHsV7smAQTcJtFND8cEm3MmB3sbgzcQdQ9CpwEwmCMsNCqPrbFmqgXZ23q"
     );
-    assert.equal(JSON.stringify(payload).includes("signed-payload-must-not-leak"), false);
-    assert.equal(JSON.stringify(payload).includes("transactionBase64"), false);
+    const serialized = JSON.stringify(payload);
+    assert.equal(serialized.includes(root), false);
+    assert.equal(serialized.includes("credential-must-not-leak"), false);
+    assert.equal(serialized.includes("/private-account"), false);
+    assert.equal(serialized.includes("signed-payload-must-not-leak"), false);
+    assert.equal(serialized.includes("transactionBase64"), false);
   });
 });
 
