@@ -105,10 +105,12 @@ def run() -> None:
             browser = playwright.chromium.launch(**launch_options)
             page = browser.new_page(viewport={"width": 1280, "height": 960})
             browser_errors: list[str] = []
-            page.on("pageerror", lambda error: browser_errors.append(str(error)))
+            page.on("pageerror", lambda error: browser_errors.append(f"pageerror: {error}"))
             page.on(
-                "console",
-                lambda message: browser_errors.append(message.text) if message.type == "error" else None,
+                "response",
+                lambda response: browser_errors.append(f"http {response.status}: {response.url}")
+                if response.status >= 400 and not response.url.endswith("/favicon.ico")
+                else None,
             )
             page.goto(base_url, wait_until="networkidle")
 
