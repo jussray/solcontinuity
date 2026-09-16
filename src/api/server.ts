@@ -12,6 +12,7 @@ export interface SolContinuityServerOptions {
   readonly exampleManifestPath?: string;
   readonly analyticsUrl?: string;
   readonly evidencePaths?: readonly string[];
+  readonly expectedHeadSha?: string;
 }
 
 const contentTypes: Readonly<Record<string, string>> = {
@@ -63,6 +64,12 @@ export function createSolContinuityServer(options: SolContinuityServerOptions = 
   const dashboardRoot = options.dashboardRoot ?? join(projectRoot, "dist", "dashboard");
   const exampleManifestPath = options.exampleManifestPath ?? join(projectRoot, "examples", "resilience-manifest.json");
   const analyticsUrl = options.analyticsUrl ?? process.env.SOLCONTINUITY_ANALYTICS_URL;
+  const expectedHeadSha = (
+    options.expectedHeadSha ??
+    process.env.SOLCONTINUITY_EXPECTED_HEAD_SHA?.trim() ??
+    process.env.EXPECTED_HEAD_SHA?.trim() ??
+    ""
+  ).trim() || null;
   const envEvidencePaths = process.env.SOLCONTINUITY_EVIDENCE_PATHS
     ?.split(",")
     .map((item) => item.trim())
@@ -87,6 +94,7 @@ export function createSolContinuityServer(options: SolContinuityServerOptions = 
           status: "ok",
           analyticsConfigured: Boolean(analyticsUrl),
           evidenceSources: evidencePaths.length,
+          runtimeHeadBound: Boolean(expectedHeadSha),
           timestamp: new Date().toISOString()
         });
         return;
@@ -98,9 +106,11 @@ export function createSolContinuityServer(options: SolContinuityServerOptions = 
         const evidence = await loadEvidenceHistory(evidencePaths, historyOptions(1));
         const latestEvidence = evidence.records[0] ?? null;
         const liveDevnetVerified = Boolean(
+          expectedHeadSha &&
           latestEvidence?.status === "passed" &&
           latestEvidence.provenance.kind === "live-devnet" &&
-          latestEvidence.provenance.exactHeadVerified
+          latestEvidence.provenance.exactHeadVerified &&
+          latestEvidence.provenance.commit === expectedHeadSha
         );
         json(response, 200, {
           project: "SolContinuity",
@@ -108,6 +118,7 @@ export function createSolContinuityServer(options: SolContinuityServerOptions = 
           manifest: manifest.name,
           audit: report,
           analyticsConfigured: Boolean(analyticsUrl),
+          runtimeExpectedHead: expectedHeadSha,
           latestEvidence,
           evidenceErrors: evidence.errors,
           proofGates: {
@@ -201,9 +212,10 @@ export function createSolContinuityServer(options: SolContinuityServerOptions = 
         json(response, 400, { error: "INVALID_JSON", message: error.message });
         return;
       }
+      console.error(`SolContinuity internal error: ${error instanceof Error ? error.name : "UnknownError"}`);
       json(response, 500, {
         error: "INTERNAL_ERROR",
-        message: error instanceof Error ? error.message : String(error)
+        message: "Internal service failure."
       });
     }
   });
@@ -219,7 +231,7 @@ async function main(): Promise<void> {
 
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   main().catch((error: unknown) => {
-    console.error(error instanceof Error ? error.stack ?? error.message : String(error));
+    console.error(error instanceof Error ? error.name : "UnknownError");
     process.exitCode = 1;
   });
 }

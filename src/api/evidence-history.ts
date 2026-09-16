@@ -54,6 +54,19 @@ function publicSourcePath(sourcePath: string): string {
   return basename(sourcePath);
 }
 
+function publicReadError(error: unknown): string {
+  if (error instanceof SyntaxError) {
+    return "Evidence source contains invalid JSON.";
+  }
+  if (error instanceof Error && error.message === "Evidence artifact must be a JSON object.") {
+    return error.message;
+  }
+  if (isRecord(error) && typeof error.code === "string") {
+    return `Evidence source unavailable (${error.code}).`;
+  }
+  return "Evidence source unavailable.";
+}
+
 function publicRouteUrl(value: unknown): string | null {
   if (typeof value !== "string") {
     return null;
@@ -195,7 +208,7 @@ export async function loadEvidenceHistory(
     } catch (error) {
       errors.push({
         sourcePath: publicSourcePath(sourcePath),
-        error: error instanceof Error ? error.message : String(error)
+        error: publicReadError(error)
       });
     }
   }

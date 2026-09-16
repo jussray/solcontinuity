@@ -48,6 +48,37 @@ function redactText(value) {
   return text;
 }
 
+function finiteNumber(value) {
+  return typeof value === "number" && Number.isFinite(value) ? value : null;
+}
+
+function sanitizeRpcEvidence(value) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return null;
+  }
+
+  const sanitized = {};
+  for (const key of ["required", "requiredProviders", "minimumAcceptances", "minimumProviderAcceptances"]) {
+    const numeric = finiteNumber(value[key]);
+    if (numeric !== null) sanitized[key] = numeric;
+  }
+
+  if (Array.isArray(value.observations)) {
+    sanitized.observations = value.observations.map((item) => {
+      const observation = item && typeof item === "object" && !Array.isArray(item) ? item : {};
+      return {
+        endpointId: typeof observation.endpointId === "string" ? observation.endpointId : null,
+        provider: typeof observation.provider === "string" ? observation.provider : null,
+        ok: observation.ok === true,
+        elapsedMs: finiteNumber(observation.elapsedMs),
+        error: observation.error == null ? null : redactText(observation.error)
+      };
+    });
+  }
+
+  return Object.keys(sanitized).length > 0 ? sanitized : null;
+}
+
 const evidence = {
   schemaVersion: "1.2",
   generatedAt: new Date().toISOString(),
@@ -101,6 +132,10 @@ function errorDetails(error) {
 
   if ("code" in error && ["string", "number"].includes(typeof error.code)) {
     details.code = error.code;
+  }
+  if ("evidence" in error) {
+    const sanitizedEvidence = sanitizeRpcEvidence(error.evidence);
+    if (sanitizedEvidence) details.evidence = sanitizedEvidence;
   }
 
   return details;
@@ -294,7 +329,7 @@ try {
     evidence.health.filter((item) => item.healthy).map((item) => item.provider.toLowerCase())
   );
   if (healthyProviders.size < 2) {
-    throw new Error(`Fewer than two independent providers are healthy.`);
+    throw new Error("Fewer than two independent providers are healthy.");
   }
 
   evidence.quorumRead = await client.request("getMinimumBalanceForRentExemption", [0], {

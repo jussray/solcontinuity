@@ -105,17 +105,33 @@ def run() -> None:
             browser = playwright.chromium.launch(**launch_options)
             page = browser.new_page(viewport={"width": 1280, "height": 960})
             browser_errors: list[str] = []
+            expected_http_failures: set[tuple[int, str]] = set()
+            observed_expected_http_failures: set[tuple[int, str]] = set()
+
+            def record_response(response) -> None:
+                if response.status < 400 or response.url.endswith("/favicon.ico"):
+                    return
+                receipt = (response.status, response.url)
+                if receipt in expected_http_failures:
+                    observed_expected_http_failures.add(receipt)
+                    return
+                browser_errors.append(f"http {response.status}: {response.url}")
+
             page.on("pageerror", lambda error: browser_errors.append(f"pageerror: {error}"))
-            page.on(
-                "response",
-                lambda response: browser_errors.append(f"http {response.status}: {response.url}")
-                if response.status >= 400 and not response.url.endswith("/favicon.ico")
-                else None,
-            )
-            page.goto(base_url, wait_until="networkidle")
+            page.on("response", record_response)
+            page.goto(base_url, wait_until="domcontentloaded")
 
             expect(page.get_by_role("heading", name="SolContinuity")).to_be_visible()
             expect(page.get_by_text("Provider-aware quorum")).to_be_visible()
+
+            # The page starts its overview request asynchronously. Actions in HTTP mode
+            # must still use the real backend before that request has settled rather than
+            # silently falling through to the static browser model.
+            page.get_by_role("button", name="Audit lab").click()
+            page.get_by_role("button", name="Run audit").click()
+            expect(page.locator("#audit-output")).to_contain_text("solcontinuity-node-api")
+            expect(page.locator("#audit-output")).not_to_contain_text("offline-browser-model")
+
             expect(page.locator("#api-status")).to_have_text("Connected")
             expect(page.locator("#analytics-status")).to_have_text("Configured")
             expect(page.locator("#evidence-mode")).to_contain_text("backend connected")
@@ -170,12 +186,18 @@ def run() -> None:
             artifact_dir.mkdir(exist_ok=True)
             page.screenshot(path=str(artifact_dir / "dashboard-proof.png"), full_page=True)
 
+            expected_provider_failure = (500, f"{base_url}/api/provider-score")
+            expected_http_failures.add(expected_provider_failure)
             stop_process(analytics_process)
             page.get_by_role("button", name="Provider lab").click()
             page.get_by_role("button", name="Score provider evidence").click()
             expect(page.locator("#provider-output")).to_contain_text("BACKEND ERROR")
             expect(page.locator("#provider-output")).not_to_contain_text("offline-browser-model")
             expect(page.locator("#announcement")).to_contain_text("no offline score was substituted")
+            assert expected_provider_failure in observed_expected_http_failures, (
+                "provider fail-closed path must preserve the expected HTTP 500 receipt"
+            )
+            expected_http_failures.remove(expected_provider_failure)
 
             stop_process(server_process)
             page.get_by_role("button", name="Audit lab").click()
@@ -184,7 +206,8 @@ def run() -> None:
             expect(page.locator("#audit-output")).not_to_contain_text("offline-browser-model")
             expect(page.locator("#announcement")).to_contain_text("no offline result was substituted")
 
-            assert browser_errors == [], f"Browser runtime errors: {browser_errors}"
+            assert expected_http_failures == set(), f"Unconsumed expected HTTP failures: {expected_http_failures}"
+            assert browser_errors == [], f"Unexpected browser runtime errors: {browser_errors}"
             browser.close()
     finally:
         if server_process is not None:

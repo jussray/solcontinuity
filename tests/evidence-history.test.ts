@@ -3,11 +3,13 @@ import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
+import { loadEvidenceHistory } from "../src/api/evidence-history.js";
 import { createSolContinuityServer } from "../src/api/server.js";
 
 async function withEvidenceServer(
   run: (baseUrl: string, root: string) => Promise<void>,
-  mutateArtifact: (artifact: Record<string, unknown>) => void = () => undefined
+  mutateArtifact: (artifact: Record<string, unknown>) => void = () => undefined,
+  expectedHeadSha?: string
 ): Promise<void> {
   const root = await mkdtemp(join(tmpdir(), "solcontinuity-evidence-"));
   const dashboardRoot = join(root, "dashboard");
@@ -38,7 +40,8 @@ async function withEvidenceServer(
   const server = createSolContinuityServer({
     dashboardRoot,
     exampleManifestPath: manifestPath,
-    evidencePaths: [evidencePath]
+    evidencePaths: [evidencePath],
+    expectedHeadSha
   });
   await new Promise<void>((resolve, reject) => {
     server.once("error", reject);
@@ -88,6 +91,22 @@ test("evidence history returns proof metadata without private evidence material"
   });
 });
 
+test("evidence read errors redact local filesystem paths", async () => {
+  const root = await mkdtemp(join(tmpdir(), "solcontinuity-private-evidence-"));
+  const missingPath = join(root, "private", "missing-evidence.json");
+  try {
+    const result = await loadEvidenceHistory([missingPath]);
+    assert.equal(result.records.length, 0);
+    assert.equal(result.errors.length, 1);
+    assert.equal(result.errors[0]?.sourcePath, "missing-evidence.json");
+    assert.match(result.errors[0]?.error ?? "", /^Evidence source unavailable/);
+    assert.equal(JSON.stringify(result.errors).includes(root), false);
+    assert.equal(JSON.stringify(result.errors).includes("/private/"), false);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
 test("overview does not promote a passed sample fixture into live Devnet proof", async () => {
   await withEvidenceServer(async (baseUrl) => {
     const response = await fetch(`${baseUrl}/api/overview`);
@@ -114,12 +133,13 @@ test("overview does not promote a passed sample fixture into live Devnet proof",
   });
 });
 
-test("overview verifies live Devnet only from an exact-head live receipt", async () => {
+test("overview verifies live Devnet only when receipt and served head match", async () => {
   await withEvidenceServer(
     async (baseUrl) => {
       const response = await fetch(`${baseUrl}/api/overview`);
       assert.equal(response.status, 200);
       const payload = await response.json() as {
+        readonly runtimeExpectedHead: string | null;
         readonly proofGates: Readonly<Record<string, boolean | null>>;
         readonly latestEvidence: {
           readonly provenance: {
@@ -130,6 +150,7 @@ test("overview verifies live Devnet only from an exact-head live receipt", async
         } | null;
       };
 
+      assert.equal(payload.runtimeExpectedHead, "candidate-head");
       assert.equal(payload.proofGates.liveDevnet, true);
       assert.equal(payload.latestEvidence?.provenance.kind, "live-devnet");
       assert.equal(payload.latestEvidence?.provenance.commit, "candidate-head");
@@ -143,6 +164,38 @@ test("overview verifies live Devnet only from an exact-head live receipt", async
         workflowRunId: "123",
         exactHeadVerified: true
       };
-    }
+    },
+    "candidate-head"
+  );
+});
+
+test("overview invalidates an exact-head receipt generated for a stale commit", async () => {
+  await withEvidenceServer(
+    async (baseUrl) => {
+      const response = await fetch(`${baseUrl}/api/overview`);
+      assert.equal(response.status, 200);
+      const payload = await response.json() as {
+        readonly runtimeExpectedHead: string | null;
+        readonly proofGates: Readonly<Record<string, boolean | null>>;
+        readonly latestEvidence: {
+          readonly provenance: { readonly commit: string | null; readonly exactHeadVerified: boolean };
+        } | null;
+      };
+
+      assert.equal(payload.runtimeExpectedHead, "current-head");
+      assert.equal(payload.latestEvidence?.provenance.commit, "previous-head");
+      assert.equal(payload.latestEvidence?.provenance.exactHeadVerified, true);
+      assert.equal(payload.proofGates.liveDevnet, null);
+    },
+    (artifact) => {
+      artifact.provenance = {
+        kind: "live-devnet",
+        source: "github-actions-workflow-dispatch",
+        commit: "previous-head",
+        workflowRunId: "122",
+        exactHeadVerified: true
+      };
+    },
+    "current-head"
   );
 });

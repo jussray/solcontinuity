@@ -12,7 +12,6 @@ const overviewEvidence = document.getElementById("overview-evidence");
 const evidenceSummary = document.getElementById("evidence-summary");
 const evidenceHistory = document.getElementById("evidence-history");
 const proofGateSummary = document.getElementById("proof-gate-summary");
-let backendConnected = false;
 
 const proofGateElements = {
   strictTypeScript: [document.getElementById("strict-typescript-gate"), document.getElementById("strict-typescript-state")],
@@ -261,7 +260,6 @@ async function loadEvidenceHistory() {
 
 async function refreshOverview() {
   if (!canUseApi()) {
-    backendConnected = false;
     apiStatus.textContent = "Offline";
     analyticsStatus.textContent = "Offline";
     evidenceMode.textContent = "Evidence mode: static artifact";
@@ -273,7 +271,6 @@ async function refreshOverview() {
 
   try {
     const payload = await apiRequest("/api/overview");
-    backendConnected = true;
     const liveDevnetVerified = payload.proofGates?.liveDevnet === true;
     apiStatus.textContent = "Connected";
     analyticsStatus.textContent = payload.analyticsConfigured ? "Configured" : "Not configured";
@@ -283,10 +280,9 @@ async function refreshOverview() {
     applyProofGates(payload.proofGates || {});
     announcement.textContent = "Backend evidence refreshed.";
   } catch (error) {
-    backendConnected = false;
     apiStatus.textContent = "Unavailable";
     analyticsStatus.textContent = "Unknown";
-    evidenceMode.textContent = "Evidence mode: fallback";
+    evidenceMode.textContent = "Evidence mode: backend unavailable";
     evidenceMode.classList.add("neutral");
     overviewEvidence.textContent = `Evidence unavailable: ${error instanceof Error ? error.message : String(error)}`;
     applyProofGates();
@@ -304,7 +300,7 @@ async function runAudit() {
     return;
   }
 
-  if (!backendConnected) {
+  if (!canUseApi()) {
     const report = localAudit(manifest);
     auditOutput.textContent = JSON.stringify(report, null, 2);
     announcement.textContent = `Offline audit complete. Score ${report.score}. Source ${report.source}.`;
@@ -345,7 +341,7 @@ function renderProviderSamples() {
 }
 
 async function runProviderScore() {
-  if (!backendConnected) {
+  if (!canUseApi()) {
     const report = localProviderScore(sampleProviders);
     providerOutput.textContent = JSON.stringify(report, null, 2);
     announcement.textContent = `Offline provider evidence scored ${report.score}. Source ${report.source}.`;
