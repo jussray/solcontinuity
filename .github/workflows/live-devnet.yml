@@ -31,14 +31,14 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - run: npm install --no-audit --no-fund
-      - run: python -m pip install -r requirements-dev.txt
-      - run: python -m playwright install --with-deps chromium
+      - run: npm ci --ignore-scripts --no-audit --no-fund
+      - run: python3 -m pip install -r requirements-dev.txt
+      - run: python3 -m playwright install --with-deps chromium
       - name: Run founder-gated Solana Devnet evidence
         run: npm run evidence:devnet
         env:
           SOLCONTINUITY_DEVNET_KEYPAIR: ${{ secrets.SOLCONTINUITY_DEVNET_KEYPAIR }}
-      - name: Run Playwright against the built console
+      - name: Run Playwright against the real local API + analytics path
         run: npm run test:e2e
         if: always()
       - uses: actions/upload-artifact@v4
