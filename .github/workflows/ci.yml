@@ -50,6 +50,8 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p test-results
+          git diff --exit-code -- package-lock.json
+          sha256sum package-lock.json > test-results/package-lock.sha256
           full_status=0
           production_status=0
           npm audit --json > test-results/npm-audit-full.json || full_status=$?
