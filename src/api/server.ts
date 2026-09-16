@@ -12,7 +12,7 @@ export interface SolContinuityServerOptions {
   readonly exampleManifestPath?: string;
   readonly analyticsUrl?: string;
   readonly evidencePaths?: readonly string[];
-  readonly expectedHeadSha?: string;
+  readonly expectedHeadSha?: string | undefined;
 }
 
 const contentTypes: Readonly<Record<string, string>> = {
