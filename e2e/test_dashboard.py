@@ -164,11 +164,25 @@ def run() -> None:
                 assert gate.evaluate("element => element.indeterminate") is True, f"{gate_id} must be UNKNOWN"
                 assert gate.get_attribute("data-state") == "unknown", f"{gate_id} must expose UNKNOWN state"
 
-            assert browser_errors == [], f"Browser runtime errors: {browser_errors}"
-
             artifact_dir = ROOT / "test-results"
             artifact_dir.mkdir(exist_ok=True)
             page.screenshot(path=str(artifact_dir / "dashboard-proof.png"), full_page=True)
+
+            stop_process(analytics_process)
+            page.get_by_role("button", name="Provider lab").click()
+            page.get_by_role("button", name="Score provider evidence").click()
+            expect(page.locator("#provider-output")).to_contain_text("BACKEND ERROR")
+            expect(page.locator("#provider-output")).not_to_contain_text("offline-browser-model")
+            expect(page.locator("#announcement")).to_contain_text("no offline score was substituted")
+
+            stop_process(server_process)
+            page.get_by_role("button", name="Audit lab").click()
+            page.get_by_role("button", name="Run audit").click()
+            expect(page.locator("#audit-output")).to_contain_text("BACKEND ERROR")
+            expect(page.locator("#audit-output")).not_to_contain_text("offline-browser-model")
+            expect(page.locator("#announcement")).to_contain_text("no offline result was substituted")
+
+            assert browser_errors == [], f"Browser runtime errors: {browser_errors}"
             browser.close()
     finally:
         if server_process is not None:
