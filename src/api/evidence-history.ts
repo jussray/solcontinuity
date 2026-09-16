@@ -1,4 +1,5 @@
 import { readFile } from "node:fs/promises";
+import { basename } from "node:path";
 
 interface JsonRecord {
   readonly [key: string]: unknown;
@@ -42,6 +43,25 @@ function stringArray(value: unknown): readonly string[] {
   return Array.isArray(value) ? value.filter((item): item is string => typeof item === "string") : [];
 }
 
+function publicSourcePath(sourcePath: string): string {
+  return basename(sourcePath);
+}
+
+function publicRouteUrl(value: unknown): string | null {
+  if (typeof value !== "string") {
+    return null;
+  }
+  try {
+    const parsed = new URL(value);
+    if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
+      return null;
+    }
+    return parsed.origin;
+  } catch {
+    return null;
+  }
+}
+
 function sanitizeProviders(value: unknown): readonly JsonRecord[] {
   if (!Array.isArray(value)) {
     return [];
@@ -51,7 +71,7 @@ function sanitizeProviders(value: unknown): readonly JsonRecord[] {
     return {
       id: stringOrNull(provider.id),
       provider: stringOrNull(provider.provider),
-      url: stringOrNull(provider.url)
+      url: publicRouteUrl(provider.url)
     };
   });
 }
@@ -80,7 +100,7 @@ function sanitizeArtifact(sourcePath: string, artifact: JsonRecord): EvidenceHis
   const verification = record(transaction.verification);
 
   return {
-    sourcePath,
+    sourcePath: publicSourcePath(sourcePath),
     generatedAt: stringOrNull(artifact.generatedAt),
     status: stringOrNull(artifact.status) ?? "unknown",
     network: stringOrNull(artifact.network),
@@ -158,7 +178,10 @@ export async function loadEvidenceHistory(
         });
       }
     } catch (error) {
-      errors.push({ sourcePath, error: error instanceof Error ? error.message : String(error) });
+      errors.push({
+        sourcePath: publicSourcePath(sourcePath),
+        error: error instanceof Error ? error.message : String(error)
+      });
     }
   }
 
