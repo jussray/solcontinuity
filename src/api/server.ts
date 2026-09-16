@@ -97,6 +97,11 @@ export function createSolContinuityServer(options: SolContinuityServerOptions = 
         const report = auditManifest(manifest);
         const evidence = await loadEvidenceHistory(evidencePaths, historyOptions(1));
         const latestEvidence = evidence.records[0] ?? null;
+        const liveDevnetVerified = Boolean(
+          latestEvidence?.status === "passed" &&
+          latestEvidence.provenance.kind === "live-devnet" &&
+          latestEvidence.provenance.exactHeadVerified
+        );
         json(response, 200, {
           project: "SolContinuity",
           boundary: "application-layer continuity",
@@ -112,7 +117,7 @@ export function createSolContinuityServer(options: SolContinuityServerOptions = 
             manifestRiskTests: null,
             playwright: null,
             automatedPackageSelfHost: null,
-            liveDevnet: latestEvidence?.status === "passed" ? true : null,
+            liveDevnet: liveDevnetVerified ? true : null,
             externalSelfHost: null
           }
         });
