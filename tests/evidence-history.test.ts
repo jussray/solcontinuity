@@ -5,7 +5,10 @@ import { join } from "node:path";
 import test from "node:test";
 import { createSolContinuityServer } from "../src/api/server.js";
 
-async function withEvidenceServer(run: (baseUrl: string, root: string) => Promise<void>): Promise<void> {
+async function withEvidenceServer(
+  run: (baseUrl: string, root: string) => Promise<void>,
+  mutateArtifact: (artifact: Record<string, unknown>) => void = () => undefined
+): Promise<void> {
   const root = await mkdtemp(join(tmpdir(), "solcontinuity-evidence-"));
   const dashboardRoot = join(root, "dashboard");
   const manifestPath = join(root, "manifest.json");
@@ -29,6 +32,7 @@ async function withEvidenceServer(run: (baseUrl: string, root: string) => Promis
       url: "https://rpc.example.invalid/private-account?api-key=credential-must-not-leak"
     }
   ];
+  mutateArtifact(artifact);
   await writeFile(evidencePath, JSON.stringify(artifact), "utf8");
 
   const server = createSolContinuityServer({
@@ -61,6 +65,7 @@ test("evidence history returns proof metadata without private evidence material"
       readonly records: readonly {
         readonly sourcePath: string;
         readonly status: string;
+        readonly provenance: { readonly exactHeadVerified: boolean };
         readonly providerSelection: readonly { readonly url: string | null }[];
         readonly transaction: { readonly signature: string | null };
       }[];
@@ -68,6 +73,7 @@ test("evidence history returns proof metadata without private evidence material"
 
     assert.equal(payload.records[0]?.status, "passed");
     assert.equal(payload.records[0]?.sourcePath, "evidence.json");
+    assert.equal(payload.records[0]?.provenance.exactHeadVerified, false);
     assert.equal(payload.records[0]?.providerSelection[0]?.url, "https://rpc.example.invalid");
     assert.equal(
       payload.records[0]?.transaction.signature,
@@ -82,7 +88,7 @@ test("evidence history returns proof metadata without private evidence material"
   });
 });
 
-test("overview verifies only proof gates backed by attached evidence", async () => {
+test("overview does not promote a passed sample fixture into live Devnet proof", async () => {
   await withEvidenceServer(async (baseUrl) => {
     const response = await fetch(`${baseUrl}/api/overview`);
     assert.equal(response.status, 200);
@@ -91,7 +97,7 @@ test("overview verifies only proof gates backed by attached evidence", async () 
       readonly latestEvidence: { readonly status: string } | null;
     };
 
-    assert.equal(payload.proofGates.liveDevnet, true);
+    assert.equal(payload.proofGates.liveDevnet, null);
     assert.equal(payload.latestEvidence?.status, "passed");
 
     for (const gate of [
@@ -106,4 +112,37 @@ test("overview verifies only proof gates backed by attached evidence", async () 
       assert.equal(payload.proofGates[gate], null, `${gate} must stay UNKNOWN without an attached current receipt`);
     }
   });
+});
+
+test("overview verifies live Devnet only from an exact-head live receipt", async () => {
+  await withEvidenceServer(
+    async (baseUrl) => {
+      const response = await fetch(`${baseUrl}/api/overview`);
+      assert.equal(response.status, 200);
+      const payload = await response.json() as {
+        readonly proofGates: Readonly<Record<string, boolean | null>>;
+        readonly latestEvidence: {
+          readonly provenance: {
+            readonly kind: string | null;
+            readonly commit: string | null;
+            readonly exactHeadVerified: boolean;
+          };
+        } | null;
+      };
+
+      assert.equal(payload.proofGates.liveDevnet, true);
+      assert.equal(payload.latestEvidence?.provenance.kind, "live-devnet");
+      assert.equal(payload.latestEvidence?.provenance.commit, "candidate-head");
+      assert.equal(payload.latestEvidence?.provenance.exactHeadVerified, true);
+    },
+    (artifact) => {
+      artifact.provenance = {
+        kind: "live-devnet",
+        source: "github-actions-workflow-dispatch",
+        commit: "candidate-head",
+        workflowRunId: "123",
+        exactHeadVerified: true
+      };
+    }
+  );
 });
