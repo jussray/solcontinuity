@@ -62,10 +62,12 @@ New manifests should use `platform`, `environment`, `targets`, `routes`, and `ve
 
 ## Install
 
+Source checkouts use the committed lockfile and do not execute dependency lifecycle scripts during setup:
+
 ```bash
-npm install
-python -m pip install -r requirements-dev.txt
-python -m playwright install chromium
+npm ci --ignore-scripts --no-audit --no-fund
+python3 -m pip install -r requirements-dev.txt
+python3 -m playwright install chromium
 ```
 
 Or run the equivalent one-command setup script:
@@ -144,7 +146,7 @@ The broadcast example accepts a serialized, pre-signed transaction only. It does
 Score a machine-readable evidence artifact:
 
 ```bash
-python scripts/score-evidence.py examples/evidence/live-devnet-evidence.sample.json
+python3 scripts/score-evidence.py examples/evidence/live-devnet-evidence.sample.json
 ```
 
 The report scores provider health, quorum, route coverage, broadcast acceptance, and independent confirmation. Its result is limited to the supplied application-layer evidence.
@@ -159,6 +161,8 @@ npm run test:consumer
 ```
 
 The package exposes the SDK at `solcontinuity` and the server factory at `solcontinuity/server`. It includes runtime code, declarations, Console assets, both reference manifests, and self-host documentation. It excludes compiled tests, runtime evidence, environment files, and private keys.
+
+The generic packed package intentionally has no production Node dependencies. The Solana SDK used by the founder-gated Devnet evidence runner remains a repository development dependency instead of being imposed on generic consumers.
 
 See `docs/self-hosting.md` for the clean-room installation and server instructions. The automated gate proves package installability and self-host startup, not adoption by an independent human developer.
 

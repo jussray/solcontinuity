@@ -45,6 +45,72 @@ jobs:
           printf '#!/usr/bin/env bash\necho "bare python alias must not be used" >&2\nexit 97\n' > "$shim_dir/python"
           chmod +x "$shim_dir/python"
           PATH="$shim_dir:$PATH" ./setup.sh
+      - name: Capture dependency audit evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p test-results
+
+          # Re-resolve lock metadata without installing lifecycle scripts. A committed
+          # lock that cannot be reproduced from package.json is stale evidence.
+          npm install --package-lock-only --ignore-scripts --no-audit --no-fund
+          cp package-lock.json test-results/package-lock.generated.json
+          sha256sum package-lock.json > test-results/package-lock.sha256
+          git diff --exit-code -- package-lock.json
+
+          full_status=0
+          production_status=0
+          npm audit --json > test-results/npm-audit-full.json || full_status=$?
+          npm audit --omit=dev --json > test-results/npm-audit-production.json || production_status=$?
+
+          # npm may return status 1 for either findings or an operational registry
+          # failure. Require a real audit report shape instead of trusting the code.
+          node - test-results/npm-audit-full.json test-results/npm-audit-production.json <<'NODE'
+          const fs = require('node:fs');
+          for (const reportPath of process.argv.slice(2)) {
+            let report;
+            try {
+              report = JSON.parse(fs.readFileSync(reportPath, 'utf8'));
+            } catch (error) {
+              console.error(`${reportPath}: invalid npm audit JSON`);
+              process.exit(2);
+            }
+            if (!report || typeof report !== 'object' || report.error) {
+              console.error(`${reportPath}: npm audit returned an operational error object`);
+              process.exit(2);
+            }
+            const vulnerabilities = report.metadata?.vulnerabilities;
+            if (!vulnerabilities || !Number.isInteger(vulnerabilities.total)) {
+              console.error(`${reportPath}: npm audit report is missing metadata.vulnerabilities.total`);
+              process.exit(2);
+            }
+          }
+          NODE
+
+          if [ "$full_status" -gt 1 ] || [ "$production_status" -gt 1 ]; then
+            echo "npm audit failed operationally (full=$full_status production=$production_status)" >&2
+            exit 2
+          fi
+
+          # The published package declares no production Node dependencies. Prove a
+          # clean production-only install actually resolves to that empty graph.
+          repo_root="$PWD"
+          prod_dir="$(mktemp -d)"
+          cp package.json package-lock.json "$prod_dir/"
+          (
+            cd "$prod_dir"
+            npm ci --omit=dev --ignore-scripts --no-audit --no-fund
+            npm ls --omit=dev --json > "$repo_root/test-results/npm-ls-production.json"
+          )
+          node - test-results/npm-ls-production.json <<'NODE'
+          const fs = require('node:fs');
+          const report = JSON.parse(fs.readFileSync(process.argv[2], 'utf8'));
+          const dependencies = report.dependencies ?? {};
+          if (Object.keys(dependencies).length !== 0) {
+            console.error(`production dependency graph is not empty: ${Object.keys(dependencies).join(', ')}`);
+            process.exit(1);
+          }
+          NODE
       - name: Verify with python alias blocked
         shell: bash
         run: |

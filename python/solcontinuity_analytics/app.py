@@ -12,7 +12,7 @@ from .scoring import ProviderObservation, score_providers
 app = FastAPI(
     title="SolContinuity Analytics",
     version="0.2.0",
-    description="Deterministic provider and blockchain-evidence scoring for Solana dApps.",
+    description="Deterministic provider and application-layer evidence scoring for multi-provider continuity.",
 )
 
 

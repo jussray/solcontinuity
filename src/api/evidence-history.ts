@@ -1,4 +1,5 @@
 import { readFile } from "node:fs/promises";
+import { basename } from "node:path";
 
 interface JsonRecord {
   readonly [key: string]: unknown;
@@ -10,6 +11,13 @@ export interface EvidenceHistoryRecord {
   readonly status: string;
   readonly network: string | null;
   readonly manifest: string | null;
+  readonly provenance: {
+    readonly kind: string | null;
+    readonly source: string | null;
+    readonly commit: string | null;
+    readonly workflowRunId: string | null;
+    readonly exactHeadVerified: boolean;
+  };
   readonly providerSelection: readonly JsonRecord[];
   readonly funding: JsonRecord;
   readonly transaction: JsonRecord;
@@ -42,6 +50,38 @@ function stringArray(value: unknown): readonly string[] {
   return Array.isArray(value) ? value.filter((item): item is string => typeof item === "string") : [];
 }
 
+function publicSourcePath(sourcePath: string): string {
+  return basename(sourcePath);
+}
+
+function publicReadError(error: unknown): string {
+  if (error instanceof SyntaxError) {
+    return "Evidence source contains invalid JSON.";
+  }
+  if (error instanceof Error && error.message === "Evidence artifact must be a JSON object.") {
+    return error.message;
+  }
+  if (isRecord(error) && typeof error.code === "string") {
+    return `Evidence source unavailable (${error.code}).`;
+  }
+  return "Evidence source unavailable.";
+}
+
+function publicRouteUrl(value: unknown): string | null {
+  if (typeof value !== "string") {
+    return null;
+  }
+  try {
+    const parsed = new URL(value);
+    if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
+      return null;
+    }
+    return parsed.origin;
+  } catch {
+    return null;
+  }
+}
+
 function sanitizeProviders(value: unknown): readonly JsonRecord[] {
   if (!Array.isArray(value)) {
     return [];
@@ -51,7 +91,7 @@ function sanitizeProviders(value: unknown): readonly JsonRecord[] {
     return {
       id: stringOrNull(provider.id),
       provider: stringOrNull(provider.provider),
-      url: stringOrNull(provider.url)
+      url: publicRouteUrl(provider.url)
     };
   });
 }
@@ -73,6 +113,7 @@ function sanitizeObservations(value: unknown): readonly JsonRecord[] {
 }
 
 function sanitizeArtifact(sourcePath: string, artifact: JsonRecord): EvidenceHistoryRecord {
+  const provenance = record(artifact.provenance);
   const funding = record(artifact.funding);
   const transaction = record(artifact.transaction);
   const broadcast = record(transaction.broadcast);
@@ -80,11 +121,18 @@ function sanitizeArtifact(sourcePath: string, artifact: JsonRecord): EvidenceHis
   const verification = record(transaction.verification);
 
   return {
-    sourcePath,
+    sourcePath: publicSourcePath(sourcePath),
     generatedAt: stringOrNull(artifact.generatedAt),
     status: stringOrNull(artifact.status) ?? "unknown",
     network: stringOrNull(artifact.network),
     manifest: stringOrNull(artifact.manifest),
+    provenance: {
+      kind: stringOrNull(provenance.kind),
+      source: stringOrNull(provenance.source),
+      commit: stringOrNull(provenance.commit),
+      workflowRunId: stringOrNull(provenance.workflowRunId),
+      exactHeadVerified: provenance.exactHeadVerified === true
+    },
     providerSelection: sanitizeProviders(artifact.providerSelection),
     funding: {
       mode: stringOrNull(funding.mode),
@@ -158,7 +206,10 @@ export async function loadEvidenceHistory(
         });
       }
     } catch (error) {
-      errors.push({ sourcePath, error: error instanceof Error ? error.message : String(error) });
+      errors.push({
+        sourcePath: publicSourcePath(sourcePath),
+        error: publicReadError(error)
+      });
     }
   }
 
