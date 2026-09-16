@@ -11,6 +11,13 @@ export interface EvidenceHistoryRecord {
   readonly status: string;
   readonly network: string | null;
   readonly manifest: string | null;
+  readonly provenance: {
+    readonly kind: string | null;
+    readonly source: string | null;
+    readonly commit: string | null;
+    readonly workflowRunId: string | null;
+    readonly exactHeadVerified: boolean;
+  };
   readonly providerSelection: readonly JsonRecord[];
   readonly funding: JsonRecord;
   readonly transaction: JsonRecord;
@@ -93,6 +100,7 @@ function sanitizeObservations(value: unknown): readonly JsonRecord[] {
 }
 
 function sanitizeArtifact(sourcePath: string, artifact: JsonRecord): EvidenceHistoryRecord {
+  const provenance = record(artifact.provenance);
   const funding = record(artifact.funding);
   const transaction = record(artifact.transaction);
   const broadcast = record(transaction.broadcast);
@@ -105,6 +113,13 @@ function sanitizeArtifact(sourcePath: string, artifact: JsonRecord): EvidenceHis
     status: stringOrNull(artifact.status) ?? "unknown",
     network: stringOrNull(artifact.network),
     manifest: stringOrNull(artifact.manifest),
+    provenance: {
+      kind: stringOrNull(provenance.kind),
+      source: stringOrNull(provenance.source),
+      commit: stringOrNull(provenance.commit),
+      workflowRunId: stringOrNull(provenance.workflowRunId),
+      exactHeadVerified: provenance.exactHeadVerified === true
+    },
     providerSelection: sanitizeProviders(artifact.providerSelection),
     funding: {
       mode: stringOrNull(funding.mode),
