@@ -59,6 +59,9 @@ const pkg = JSON.parse(await readFile('package.json', 'utf8'));
 const ciWorkflow = await readFile('.github/workflows/ci.yml', 'utf8');
 const controlWorkflow = await readFile('.github/workflows/control-room.yml', 'utf8');
 const liveWorkflow = await readFile('.github/workflows/live-devnet.yml', 'utf8');
+const setupScript = await readFile('setup.sh', 'utf8');
+const e2eScript = await readFile('e2e/test_dashboard.py', 'utf8');
+const liveEvidenceScript = await readFile('scripts/live-devnet-evidence.mjs', 'utf8');
 const founderIntelligence = await readFile('AGENTS_FOUNDER_INTELLIGENCE.md', 'utf8');
 const errors = [];
 
@@ -95,10 +98,25 @@ if (!founderIntelligence.includes('the stricter rule wins')) {
 for (const [name, command] of REQUIRED_SCRIPTS) {
   if (pkg.scripts?.[name] !== command) errors.push(`package script ${name} drifted`);
 }
+if (pkg.dependencies?.['@solana/web3.js']) {
+  errors.push('generic package must not impose the Solana proof SDK as a production dependency');
+}
+if (!pkg.devDependencies?.['@solana/web3.js']) {
+  errors.push('repository Devnet proof path still requires @solana/web3.js as a development dependency');
+}
 
+if (!setupScript.includes('npm ci --ignore-scripts --no-audit --no-fund')) {
+  errors.push('source setup must install the committed Node graph without dependency lifecycle scripts');
+}
 if (!ciWorkflow.includes("node-version: 24")) errors.push('canonical CI must run Node 24');
 if (!ciWorkflow.includes('FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true')) errors.push('canonical CI must force JavaScript Actions to Node 24');
 if (!ciWorkflow.includes('EXPECTED_HEAD_SHA:')) errors.push('canonical CI must bind an immutable expected head');
+if (!ciWorkflow.includes('git diff --exit-code -- package-lock.json')) {
+  errors.push('canonical CI must prove npm ci did not mutate the committed lockfile');
+}
+if (!ciWorkflow.includes('npm audit --omit=dev --json')) {
+  errors.push('canonical CI must retain a separate production dependency audit receipt');
+}
 if (!controlWorkflow.includes("node-version: '24'")) errors.push('Control Room workflow must run Node 24');
 if (!controlWorkflow.includes('python-version: "3.12"')) errors.push('Control Room workflow must pin Python 3.12');
 if (!controlWorkflow.includes('npm run verify')) errors.push('Control Room workflow must execute canonical npm verify');
@@ -122,6 +140,28 @@ if (!liveWorkflow.includes('Verify immutable head')) {
 }
 if (!liveWorkflow.includes('node-version: 24')) {
   errors.push('live Devnet evidence must run Node 24');
+}
+if (!liveWorkflow.includes('npm ci --ignore-scripts --no-audit --no-fund')) {
+  errors.push('live Devnet workflow must use the committed Node dependency graph');
+}
+if (!liveEvidenceScript.includes('exactHeadVerified') || !liveEvidenceScript.includes('expectedHeadSha')) {
+  errors.push('live Devnet artifact must record exact-head provenance as evidence, not authority');
+}
+if (!liveEvidenceScript.includes('publicRouteUrl')) {
+  errors.push('live Devnet artifact must redact credential-bearing route paths and query strings');
+}
+
+if (e2eScript.includes('page.set_content(')) {
+  errors.push('Playwright must not replace the real runtime path with an in-memory static document');
+}
+if (!e2eScript.includes('page.goto(base_url') || !e2eScript.includes('dist/src/api/server.js')) {
+  errors.push('Playwright must exercise the real Node server path');
+}
+if (!e2eScript.includes('python.solcontinuity_analytics.app:app')) {
+  errors.push('Playwright must exercise the real analytics service path');
+}
+if (!e2eScript.includes('no offline result was substituted') || !e2eScript.includes('no offline score was substituted')) {
+  errors.push('Playwright must prove connected backend failures are not masked by offline fallbacks');
 }
 
 const catalog = Array.isArray(manifest.tests?.catalog) ? manifest.tests.catalog : [];

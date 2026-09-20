@@ -26,8 +26,8 @@ PYTHON_BIN="$(command -v python3 || command -v python || true)"
 
 log "Node $(node --version), npm $(npm --version), $($PYTHON_BIN --version)"
 
-log "Installing Node dependencies (npm install)"
-npm install
+log "Installing exact Node dependencies (npm ci --ignore-scripts)"
+npm ci --ignore-scripts --no-audit --no-fund
 
 log "Installing Python dependencies (requirements-dev.txt)"
 "$PYTHON_BIN" -m pip install -r requirements-dev.txt

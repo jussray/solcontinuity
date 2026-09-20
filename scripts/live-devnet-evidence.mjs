@@ -1,3 +1,4 @@
+import { execFileSync } from "node:child_process";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import {
@@ -16,13 +17,86 @@ const manifest = JSON.parse(await readFile(manifestPath, "utf8"));
 const client = new MultiRpcClient({ endpoints: manifest.rpcEndpoints, defaultTimeoutMs: 8_000 });
 const endpointById = new Map(manifest.rpcEndpoints.map((endpoint) => [endpoint.id, endpoint]));
 const configuredKeypairJson = process.env.SOLCONTINUITY_DEVNET_KEYPAIR?.trim() ?? "";
+const expectedHeadSha = process.env.EXPECTED_HEAD_SHA?.trim() || null;
+const actualHeadSha = (() => {
+  try {
+    return execFileSync("git", ["rev-parse", "HEAD"], { encoding: "utf8" }).trim();
+  } catch {
+    return null;
+  }
+})();
+
+function publicRouteUrl(value) {
+  try {
+    const parsed = new URL(value);
+    if (parsed.protocol !== "http:" && parsed.protocol !== "https:") return null;
+    return parsed.origin;
+  } catch {
+    return null;
+  }
+}
+
+function redactText(value) {
+  let text = String(value);
+  if (configuredKeypairJson) {
+    text = text.split(configuredKeypairJson).join("[REDACTED_DEVNET_KEYPAIR]");
+  }
+  for (const endpoint of manifest.rpcEndpoints) {
+    const publicUrl = publicRouteUrl(endpoint.url) ?? "[REDACTED_ROUTE]";
+    text = text.split(endpoint.url).join(publicUrl);
+  }
+  return text;
+}
+
+function finiteNumber(value) {
+  return typeof value === "number" && Number.isFinite(value) ? value : null;
+}
+
+function sanitizeRpcEvidence(value) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return null;
+  }
+
+  const sanitized = {};
+  for (const key of ["required", "requiredProviders", "minimumAcceptances", "minimumProviderAcceptances"]) {
+    const numeric = finiteNumber(value[key]);
+    if (numeric !== null) sanitized[key] = numeric;
+  }
+
+  if (Array.isArray(value.observations)) {
+    sanitized.observations = value.observations.map((item) => {
+      const observation = item && typeof item === "object" && !Array.isArray(item) ? item : {};
+      return {
+        endpointId: typeof observation.endpointId === "string" ? observation.endpointId : null,
+        provider: typeof observation.provider === "string" ? observation.provider : null,
+        ok: observation.ok === true,
+        elapsedMs: finiteNumber(observation.elapsedMs),
+        error: observation.error == null ? null : redactText(observation.error)
+      };
+    });
+  }
+
+  return Object.keys(sanitized).length > 0 ? sanitized : null;
+}
 
 const evidence = {
-  schemaVersion: "1.1",
+  schemaVersion: "1.2",
   generatedAt: new Date().toISOString(),
   manifest: manifest.name,
   network: manifest.network,
-  providerSelection: manifest.rpcEndpoints.map(({ id, provider, url }) => ({ id, provider, url })),
+  provenance: {
+    kind: "live-devnet",
+    source: process.env.GITHUB_ACTIONS === "true" ? "github-actions-workflow-dispatch" : "local",
+    commit: actualHeadSha,
+    expectedCommit: expectedHeadSha,
+    workflowRunId: process.env.GITHUB_RUN_ID?.trim() || null,
+    exactHeadVerified: Boolean(actualHeadSha && expectedHeadSha && actualHeadSha === expectedHeadSha)
+  },
+  providerSelection: manifest.rpcEndpoints.map(({ id, provider, url }) => ({
+    id,
+    provider,
+    url: publicRouteUrl(url)
+  })),
   health: null,
   quorumRead: null,
   funding: {
@@ -48,25 +122,20 @@ function sleep(ms) {
 
 function errorDetails(error) {
   if (!(error instanceof Error)) {
-    return { name: "UnknownError", message: String(error) };
+    return { name: "UnknownError", message: redactText(error) };
   }
 
   const details = {
     name: error.name,
-    message: error.message,
-    stack: error.stack
+    message: redactText(error.message)
   };
 
-  if ("code" in error) {
+  if ("code" in error && ["string", "number"].includes(typeof error.code)) {
     details.code = error.code;
   }
   if ("evidence" in error) {
-    details.evidence = error.evidence;
-  }
-  if ("cause" in error && error.cause !== undefined) {
-    details.cause = error.cause instanceof Error
-      ? { name: error.cause.name, message: error.cause.message }
-      : error.cause;
+    const sanitizedEvidence = sanitizeRpcEvidence(error.evidence);
+    if (sanitizedEvidence) details.evidence = sanitizedEvidence;
   }
 
   return details;
@@ -88,10 +157,8 @@ function loadConfiguredPayer() {
   let values;
   try {
     values = JSON.parse(configuredKeypairJson);
-  } catch (error) {
-    throw new Error(
-      `SOLCONTINUITY_DEVNET_KEYPAIR is not valid JSON: ${error instanceof Error ? error.message : String(error)}`
-    );
+  } catch {
+    throw new Error("SOLCONTINUITY_DEVNET_KEYPAIR is not valid JSON.");
   }
 
   if (
@@ -125,7 +192,7 @@ async function waitForProviderConfirmation(signature, minimumProviders, timeoutM
   }
 
   throw new Error(
-    `Transaction ${signature} was not confirmed by ${minimumProviders} independent providers within ${timeoutMs}ms. Last observation: ${JSON.stringify({ latest, providerAgreementCount })}`
+    `Transaction ${signature} was not confirmed by ${minimumProviders} independent providers within ${timeoutMs}ms.`
   );
 }
 
@@ -262,7 +329,7 @@ try {
     evidence.health.filter((item) => item.healthy).map((item) => item.provider.toLowerCase())
   );
   if (healthyProviders.size < 2) {
-    throw new Error(`Fewer than two independent providers are healthy: ${JSON.stringify(evidence.health)}`);
+    throw new Error("Fewer than two independent providers are healthy.");
   }
 
   evidence.quorumRead = await client.request("getMinimumBalanceForRentExemption", [0], {

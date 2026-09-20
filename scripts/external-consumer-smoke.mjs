@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -155,6 +155,16 @@ try {
 
   const tarballPath = join(packDirectory, packageInfo.filename);
   run("npm", ["install", "--no-audit", "--no-fund", tarballPath], consumerDirectory);
+  const installedManifest = JSON.parse(await readFile(
+    join(consumerDirectory, "node_modules", "solcontinuity", "package.json"),
+    "utf8"
+  ));
+  const productionDependencies = Object.keys(installedManifest.dependencies ?? {});
+  assert.deepEqual(
+    productionDependencies,
+    [],
+    `Generic package unexpectedly installs runtime dependencies: ${productionDependencies.join(", ")}`
+  );
   await writeFile(join(consumerDirectory, "consumer.mjs"), consumerSource);
   const consumerResult = JSON.parse(run("node", ["consumer.mjs"], consumerDirectory));
 
@@ -168,10 +178,11 @@ try {
       filename: packageInfo.filename,
       fileCount: packagedPaths.length,
       unpackedSize: packageInfo.unpackedSize,
-      forbiddenPathScan: "passed"
+      forbiddenPathScan: "passed",
+      productionDependencies
     },
     cleanRoom: consumerResult,
-    boundary: "Automated clean-room packaging proves installability, platform-neutral JSON-RPC quorum consumption, package-path hygiene, and self-host startup, not adoption by an independent human developer."
+    boundary: "Automated clean-room packaging proves installability, zero generic-package runtime dependencies, platform-neutral JSON-RPC quorum consumption, package-path hygiene, and self-host startup, not adoption by an independent human developer."
   };
   await mkdir(dirname(ARTIFACT_PATH), { recursive: true });
   await writeFile(ARTIFACT_PATH, `${JSON.stringify(evidence, null, 2)}\n`);

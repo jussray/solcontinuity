@@ -71,6 +71,17 @@ def test_api_returns_truth_boundary() -> None:
     assert "does not prove" in payload["truthBoundary"]
 
 
+def test_openapi_description_matches_platform_neutral_boundary() -> None:
+    client = TestClient(app)
+    response = client.get("/openapi.json")
+
+    assert response.status_code == 200
+    description = response.json()["info"]["description"]
+    assert "application-layer" in description
+    assert "multi-provider" in description
+    assert "Solana dApps" not in description
+
+
 def test_passed_live_artifact_is_verified() -> None:
     result = assess_evidence(sample_artifact())
 
