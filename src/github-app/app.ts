@@ -115,7 +115,7 @@ function webhookTarget(event: string, payload: unknown): WebhookTarget | null {
 
   if (event === "push") {
     const headSha = stringField(root, "after");
-    return headSha ? { installationId, repository, headSha } : null;
+    return headSha && !/^0+$/.test(headSha) ? { installationId, repository, headSha } : null;
   }
 
   if (event === "pull_request") {
@@ -177,7 +177,7 @@ async function readManifest(
   repository: string,
   headSha: string,
   fetchImpl: FetchLike
-): Promise<{ readonly path: string; readonly value: unknown } | null> {
+): Promise<{ readonly path: string; readonly raw: string } | null> {
   const apiBaseUrl = config.apiBaseUrl ?? "https://api.github.com";
   const paths = config.manifestPaths ?? DEFAULT_MANIFEST_PATHS;
   for (const path of paths) {
@@ -201,8 +201,10 @@ async function readManifest(
     if (body.type !== "file" || body.encoding !== "base64" || typeof body.content !== "string") {
       throw new Error(`GitHub manifest response for ${path} was not a base64 file.`);
     }
-    const decoded = Buffer.from(body.content.replace(/\s/g, ""), "base64").toString("utf8");
-    return { path, value: JSON.parse(decoded) as unknown };
+    return {
+      path,
+      raw: Buffer.from(body.content.replace(/\s/g, ""), "base64").toString("utf8")
+    };
   }
   return null;
 }
@@ -316,12 +318,14 @@ export async function processGitHubWebhook(
 
   let report: ManifestAuditReport;
   try {
-    report = auditManifest(parseManifest(manifest.value));
+    report = auditManifest(parseManifest(JSON.parse(manifest.raw) as unknown));
   } catch (error) {
     const cookie = proofCookie(input.delivery, input.event, target.repository, target.headSha, manifest.path, null);
     const detail = error instanceof ManifestValidationError
       ? error.issues.map((issue) => `- ${issue}`).join("\n").slice(0, 60_000)
-      : "Manifest JSON was readable but could not be audited.";
+      : error instanceof SyntaxError
+        ? "Manifest file is not valid JSON."
+        : "Manifest JSON was readable but could not be audited.";
     const checkRunId = await publishCheck(config, token, target.repository, target.headSha, {
       title: "Sol Continuity manifest is invalid",
       summary: `Manifest: \`${manifest.path}\`\nExact head: \`${target.headSha}\`\nProof cookie: \`${cookie}\``,
