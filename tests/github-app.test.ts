@@ -31,6 +31,7 @@ const validManifest = {
   dependencies: [],
   verification: {
     minimumRouteAgreement: 2,
+    commitment: "confirmed",
     publishEvidence: true
   }
 };
