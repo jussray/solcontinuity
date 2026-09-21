@@ -43,13 +43,12 @@ export function githubAppConfigFromEnv(): GitHubAppConfig {
     ?.split(",")
     .map((item) => item.trim())
     .filter(Boolean);
+  const apiBaseUrl = process.env.SOLCONTINUITY_GITHUB_API_URL?.trim();
   return {
     appId: requiredEnv("SOLCONTINUITY_GITHUB_APP_ID"),
     privateKey: requiredEnv("SOLCONTINUITY_GITHUB_PRIVATE_KEY"),
     webhookSecret: requiredEnv("SOLCONTINUITY_GITHUB_WEBHOOK_SECRET"),
-    ...(process.env.SOLCONTINUITY_GITHUB_API_URL?.trim()
-      ? { apiBaseUrl: process.env.SOLCONTINUITY_GITHUB_API_URL.trim() }
-      : {}),
+    ...(apiBaseUrl ? { apiBaseUrl } : {}),
     ...(manifestPaths && manifestPaths.length > 0 ? { manifestPaths } : {})
   };
 }
