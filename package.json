@@ -15,6 +15,10 @@
       "types": "./dist/src/api/server.d.ts",
       "import": "./dist/src/api/server.js"
     },
+    "./github-app": {
+      "types": "./dist/src/github-app/app.d.ts",
+      "import": "./dist/src/github-app/app.js"
+    },
     "./package.json": "./package.json"
   },
   "files": [
@@ -23,7 +27,8 @@
     "examples/resilience-manifest.json",
     "examples/continuity-manifest.json",
     "README.md",
-    "docs/self-hosting.md"
+    "docs/self-hosting.md",
+    "docs/github-app.md"
   ],
   "engines": {
     "node": ">=20"
@@ -43,6 +48,7 @@
     "test:ai-routing": "node --test .ai-skills/runtime/*.test.mjs",
     "test": "npm run test:node && npm run test:runner && npm run test:python && npm run test:ai-routing",
     "start": "npm run build && node dist/src/api/server.js",
+    "start:github-app": "npm run build && node dist/src/github-app/server.js",
     "start:analytics": "node scripts/run-python.mjs -m uvicorn python.solcontinuity_analytics.app:app --host 127.0.0.1 --port 8001",
     "audit:example": "npm run build && node dist/src/cli/index.js audit examples/resilience-manifest.json",
     "health:example": "npm run build && node dist/src/cli/index.js health examples/resilience-manifest.json",
