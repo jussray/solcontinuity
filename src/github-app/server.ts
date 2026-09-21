@@ -6,6 +6,11 @@ import { processGitHubWebhook, verifyWebhookSignature, type GitHubAppConfig } fr
 const MAX_WEBHOOK_BYTES = 1_000_000;
 const DELIVERY_TTL_MS = 10 * 60 * 1000;
 const MAX_TRACKED_DELIVERIES = 2_000;
+const REQUIRED_GITHUB_APP_ENV = [
+  "SOLCONTINUITY_GITHUB_APP_ID",
+  "SOLCONTINUITY_GITHUB_PRIVATE_KEY",
+  "SOLCONTINUITY_GITHUB_WEBHOOK_SECRET"
+] as const;
 
 function json(response: ServerResponse, status: number, body: unknown): void {
   response.writeHead(status, {
@@ -38,6 +43,10 @@ function requiredEnv(name: string): string {
   return value;
 }
 
+export function missingGitHubAppEnvironment(): string[] {
+  return REQUIRED_GITHUB_APP_ENV.filter((name) => !process.env[name]?.trim());
+}
+
 export function githubAppConfigFromEnv(): GitHubAppConfig {
   const manifestPaths = process.env.SOLCONTINUITY_GITHUB_MANIFEST_PATHS
     ?.split(",")
@@ -51,6 +60,30 @@ export function githubAppConfigFromEnv(): GitHubAppConfig {
     ...(apiBaseUrl ? { apiBaseUrl } : {}),
     ...(manifestPaths && manifestPaths.length > 0 ? { manifestPaths } : {})
   };
+}
+
+export function createGitHubAppBootstrapServer(missingEnvironmentVariables: string[]) {
+  return createServer((request, response) => {
+    const url = new URL(request.url ?? "/", `http://${request.headers.host ?? "127.0.0.1"}`);
+
+    if (request.method === "GET" && url.pathname === "/health") {
+      json(response, 200, {
+        service: "solcontinuity-github-app",
+        status: "registration-required",
+        ready: false,
+        missingEnvironmentVariables,
+        timestamp: new Date().toISOString()
+      });
+      return;
+    }
+
+    if (request.method === "POST" && url.pathname === "/github/webhook") {
+      json(response, 503, { error: "GITHUB_APP_NOT_CONFIGURED" });
+      return;
+    }
+
+    json(response, 404, { error: "NOT_FOUND" });
+  });
 }
 
 export function createGitHubAppServer(config: GitHubAppConfig) {
@@ -78,6 +111,7 @@ export function createGitHubAppServer(config: GitHubAppConfig) {
       json(response, 200, {
         service: "solcontinuity-github-app",
         status: "ok",
+        ready: true,
         timestamp: new Date().toISOString()
       });
       return;
@@ -130,9 +164,15 @@ async function main(): Promise<void> {
   if (!Number.isInteger(port) || port < 1 || port > 65535) {
     throw new Error("PORT must be an integer between 1 and 65535.");
   }
-  const server = createGitHubAppServer(githubAppConfigFromEnv());
+
+  const missingEnvironmentVariables = missingGitHubAppEnvironment();
+  const server = missingEnvironmentVariables.length > 0
+    ? createGitHubAppBootstrapServer(missingEnvironmentVariables)
+    : createGitHubAppServer(githubAppConfigFromEnv());
+
   server.listen(port, "0.0.0.0", () => {
-    console.log(`SolContinuity GitHub App listening on port ${port}`);
+    const mode = missingEnvironmentVariables.length > 0 ? "registration-required" : "ready";
+    console.log(`SolContinuity GitHub App listening on port ${port} (${mode})`);
   });
 }
 
