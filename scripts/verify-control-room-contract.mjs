@@ -27,7 +27,7 @@ const REQUIRED_SCRIPTS = new Map([
   ['test:node', 'npm run build && node --test dist/tests/*.test.js'],
   ['test:runner', 'node --test tests/python-runner.test.mjs'],
   ['test:python', 'node scripts/run-python.mjs -m pytest python/tests -q'],
-  ['test:e2e', 'npm run build && node scripts/run-python.mjs e2e/test_dashboard.py'],
+  ['test:e2e', 'npm run build && node scripts/run-python.mjs e2e/test_dashboard.py && node scripts/run-python.mjs e2e/test_dashboard_accessibility.py'],
   ['test:consumer', 'node scripts/external-consumer-smoke.mjs'],
   ['evidence:devnet', 'npm run build && node scripts/live-devnet-evidence.mjs examples/resilience-manifest.json'],
   ['verify', 'npm run typecheck && npm run test && npm run test:e2e && npm run test:consumer'],
