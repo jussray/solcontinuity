@@ -141,7 +141,11 @@ def run() -> None:
             page.get_by_role("button", name="Live evidence").click()
             expect(page.get_by_role("heading", name="Live transaction history")).to_be_visible()
             expect(page.locator("#evidence-summary")).to_contain_text("1 sanitized evidence record")
+            expect(page.locator("#evidence-summary")).to_contain_text("1 STALE")
             expect(page.locator("#evidence-history")).to_contain_text("Signed Memo transaction")
+            expect(page.locator("#evidence-history")).to_contain_text("Freshness")
+            expect(page.locator("#evidence-history")).to_contain_text("historical receipt only")
+            assert page.locator("#evidence-history .evidence-card").first.get_attribute("data-freshness") == "stale"
 
             page.get_by_role("button", name="Audit lab").click()
             expect(page.get_by_role("heading", name="Manifest audit lab")).to_be_visible()

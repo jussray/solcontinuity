@@ -178,9 +178,34 @@ function formatTime(value) {
   return Number.isNaN(parsed.getTime()) ? String(value) : parsed.toLocaleString();
 }
 
+const EVIDENCE_STALE_AFTER_MS = 24 * 60 * 60 * 1000;
+const EVIDENCE_FUTURE_TOLERANCE_MS = 5 * 60 * 1000;
+
+function evidenceFreshness(value, now = Date.now()) {
+  if (!value) return { state: "unknown", label: "UNKNOWN · timestamp unavailable" };
+  const parsed = new Date(value);
+  const generatedAt = parsed.getTime();
+  if (Number.isNaN(generatedAt)) return { state: "unknown", label: "UNKNOWN · invalid timestamp" };
+
+  const ageMs = now - generatedAt;
+  if (ageMs < -EVIDENCE_FUTURE_TOLERANCE_MS) {
+    return { state: "unknown", label: "UNKNOWN · timestamp is in the future" };
+  }
+
+  const normalizedAgeMs = Math.max(0, ageMs);
+  const ageHours = Math.floor(normalizedAgeMs / (60 * 60 * 1000));
+  const ageLabel = ageHours >= 48 ? `${Math.floor(ageHours / 24)}d old` : `${ageHours}h old`;
+  if (normalizedAgeMs > EVIDENCE_STALE_AFTER_MS) {
+    return { state: "stale", label: `STALE · ${ageLabel} · historical receipt only` };
+  }
+  return { state: "recent", label: `RECENT · ${ageLabel}` };
+}
+
 function renderEvidenceRecord(record) {
   const card = document.createElement("article");
   card.className = "evidence-card";
+  const freshness = evidenceFreshness(record.generatedAt);
+  card.dataset.freshness = freshness.state;
 
   const header = document.createElement("div");
   header.className = "evidence-card-header";
@@ -197,6 +222,7 @@ function renderEvidenceRecord(record) {
   metrics.className = "evidence-grid";
   const rows = [
     ["Network", record.network || "unknown"],
+    ["Freshness", freshness.label],
     ["Assessment", assessment ? `${assessment.verdict} · ${assessment.score}/100` : record.assessmentError || "not scored"],
     ["Confirmed by", (record.transaction?.verification?.confirmedBy || []).join(", ") || "none"],
     ["Routes attempted", String(record.transaction?.broadcast?.observations?.length || 0)],
@@ -245,7 +271,14 @@ async function loadEvidenceHistory() {
       evidenceHistory.append(textElement("div", "evidence-empty", "Configure SOLCONTINUITY_EVIDENCE_PATHS or run the live Devnet evidence workflow."));
       return;
     }
-    evidenceSummary.textContent = `${records.length} sanitized evidence record${records.length === 1 ? "" : "s"}. Serialized transaction bytes are never returned.`;
+    const freshnessStates = records.map((record) => evidenceFreshness(record.generatedAt).state);
+    const staleCount = freshnessStates.filter((state) => state === "stale").length;
+    const unknownCount = freshnessStates.filter((state) => state === "unknown").length;
+    const freshnessParts = [];
+    if (staleCount) freshnessParts.push(`${staleCount} STALE by the 24h console freshness window; historical receipts do not prove current network state.`);
+    if (unknownCount) freshnessParts.push(`${unknownCount} freshness UNKNOWN because its timestamp cannot support a current-state claim.`);
+    if (!staleCount && !unknownCount) freshnessParts.push("All record timestamps are RECENT within the 24h console freshness window.");
+    evidenceSummary.textContent = `${records.length} sanitized evidence record${records.length === 1 ? "" : "s"}. ${freshnessParts.join(" ")} Serialized transaction bytes are never returned.`;
     records.forEach((record) => evidenceHistory.append(renderEvidenceRecord(record)));
     if (Array.isArray(payload.errors) && payload.errors.length) {
       evidenceHistory.append(textElement("p", "evidence-error", `${payload.errors.length} evidence source error(s) were preserved.`));
