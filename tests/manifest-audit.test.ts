@@ -99,6 +99,28 @@ test("audit detects concentrated and irreplaceable infrastructure", () => {
   assert.ok(report.findings.some((item) => item.id === "recovery-frontend"));
 });
 
+test("audit flags an archived required dependency even when a replacement is documented", () => {
+  const manifest = parseManifest({
+    ...validManifest,
+    dependencies: [{
+      name: "Flowise archived snapshot",
+      kind: "api",
+      required: true,
+      replacement: "maintained workflow runner",
+      maintenanceStatus: "archived",
+      sourceRepository: "https://github.com/FlowiseAI/Flowise"
+    }]
+  });
+  const report = auditManifest(manifest, new Date("2026-09-23T04:54:00.000Z"));
+  const lifecycleFinding = report.findings.find((item) => item.id === "dependency-lifecycle");
+
+  assert.ok(lifecycleFinding);
+  assert.equal(lifecycleFinding.severity, "high");
+  assert.match(lifecycleFinding.evidence, /Flowise archived snapshot \(archived -> maintained workflow runner\)/);
+  assert.match(lifecycleFinding.recommendation, /Do not add new runtime reliance/);
+  assert.ok(!report.findings.some((item) => item.id === "irreplaceable-dependencies"));
+});
+
 test("manifest rejects conflicting modern and legacy route declarations", () => {
   assert.throws(
     () => parseManifest({

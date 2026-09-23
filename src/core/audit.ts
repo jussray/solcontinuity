@@ -5,6 +5,12 @@ interface CheckResult {
   readonly finding?: AuditFinding;
 }
 
+type DependencyLifecycleMetadata = {
+  readonly maintenanceStatus?: "active" | "maintenance" | "archived" | "sunset" | "unknown";
+  readonly sourceRepository?: string;
+  readonly lastVerifiedAt?: string;
+};
+
 const severityPenalty: Readonly<Record<RiskSeverity, number>> = {
   critical: 30,
   high: 20,
@@ -35,11 +41,20 @@ function hostname(value: string): string {
   }
 }
 
+function lifecycleStatus(dependency: ContinuityManifest["dependencies"][number]): string {
+  const status = (dependency as ContinuityManifest["dependencies"][number] & DependencyLifecycleMetadata).maintenanceStatus;
+  return typeof status === "string" ? status.toLowerCase() : "unknown";
+}
+
 export function auditManifest(manifest: ContinuityManifest, generatedAt = new Date()): ManifestAuditReport {
   const providers = manifest.routes.map((endpoint) => endpoint.provider ?? hostname(endpoint.url));
   const uniqueProviders = new Set(providers.map((provider) => provider.toLowerCase()));
   const requiredDependencies = manifest.dependencies.filter((dependency) => dependency.required);
   const irreplaceableDependencies = requiredDependencies.filter((dependency) => !dependency.replacement);
+  const unsafeLifecycleDependencies = requiredDependencies.filter((dependency) => {
+    const status = lifecycleStatus(dependency);
+    return status === "archived" || status === "sunset";
+  });
   const isSolana = manifest.platform.toLowerCase() === "solana";
   const programTargets = manifest.targets.filter((target) => target.kind === "program" && target.address);
 
@@ -133,6 +148,17 @@ export function auditManifest(manifest: ContinuityManifest, generatedAt = new Da
           "Required dependencies have no replacement path",
           irreplaceableDependencies.map((dependency) => `${dependency.name} (${dependency.kind})`).join(", "),
           "Document a replacement, export path, fallback, or recovery mode for each required dependency."
+        ),
+    unsafeLifecycleDependencies.length === 0
+      ? pass()
+      : finding(
+          "dependency-lifecycle",
+          unsafeLifecycleDependencies.some((dependency) => !dependency.replacement) ? "critical" : "high",
+          "Required dependencies are archived or sunset",
+          unsafeLifecycleDependencies
+            .map((dependency) => `${dependency.name} (${lifecycleStatus(dependency)}${dependency.replacement ? ` -> ${dependency.replacement}` : ""})`)
+            .join(", "),
+          "Do not add new runtime reliance on archived or sunset dependencies. Preserve only bounded migration or salvage use, and move required runtime work to a maintained replacement."
         ),
     manifest.verification.publishEvidence
       ? pass()
