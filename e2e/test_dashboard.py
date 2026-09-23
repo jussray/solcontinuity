@@ -127,7 +127,7 @@ def run() -> None:
             # The page starts its overview request asynchronously. Actions in HTTP mode
             # must still use the real backend before that request has settled rather than
             # silently falling through to the static browser model.
-            page.get_by_role("button", name="Audit lab").click()
+            page.get_by_role("tab", name="Audit lab").click()
             page.get_by_role("button", name="Run audit").click()
             expect(page.locator("#audit-output")).to_contain_text("solcontinuity-node-api")
             expect(page.locator("#audit-output")).not_to_contain_text("offline-browser-model")
@@ -138,7 +138,7 @@ def run() -> None:
             expect(page.locator("#overview-evidence")).to_contain_text("application-layer continuity")
             expect(page.locator("#overview-evidence")).to_contain_text("not currently loaded")
 
-            page.get_by_role("button", name="Live evidence").click()
+            page.get_by_role("tab", name="Live evidence").click()
             expect(page.get_by_role("heading", name="Live transaction history")).to_be_visible()
             expect(page.locator("#evidence-summary")).to_contain_text("1 sanitized evidence record")
             expect(page.locator("#evidence-summary")).to_contain_text("1 STALE")
@@ -147,7 +147,7 @@ def run() -> None:
             expect(page.locator("#evidence-history")).to_contain_text("historical receipt only")
             assert page.locator("#evidence-history .evidence-card").first.get_attribute("data-freshness") == "stale"
 
-            page.get_by_role("button", name="Audit lab").click()
+            page.get_by_role("tab", name="Audit lab").click()
             expect(page.get_by_role("heading", name="Manifest audit lab")).to_be_visible()
             page.get_by_role("button", name="Run audit").click()
             expect(page.locator("#audit-output")).to_contain_text('"score": 100')
@@ -155,17 +155,17 @@ def run() -> None:
             expect(page.locator("#audit-output")).not_to_contain_text("offline-browser-model")
             expect(page.locator("#announcement")).to_contain_text("Audit complete")
 
-            page.get_by_role("button", name="Provider lab").click()
+            page.get_by_role("tab", name="Provider lab").click()
             expect(page.get_by_role("heading", name="Provider evidence lab")).to_be_visible()
             page.get_by_role("button", name="Score provider evidence").click()
             expect(page.locator("#provider-output")).to_contain_text('"score":')
             expect(page.locator("#provider-output")).to_contain_text("solcontinuity-python-analytics")
             expect(page.locator("#provider-output")).not_to_contain_text("offline-browser-model")
 
-            page.get_by_role("button", name="Architecture").click()
+            page.get_by_role("tab", name="Architecture").click()
             expect(page.get_by_text("does not alter Solana consensus", exact=False)).to_be_visible()
 
-            page.get_by_role("button", name="Proof gates").click()
+            page.get_by_role("tab", name="Proof gates").click()
             expect(page.get_by_text("Python analytics tests", exact=False)).to_be_visible()
             expect(page.get_by_text("Live Devnet multi-provider test", exact=False)).to_be_visible()
             expect(page.get_by_text("External developer self-host test", exact=False)).to_be_visible()
@@ -193,7 +193,7 @@ def run() -> None:
             expected_provider_failure = (500, f"{base_url}/api/provider-score")
             expected_http_failures.add(expected_provider_failure)
             stop_process(analytics_process)
-            page.get_by_role("button", name="Provider lab").click()
+            page.get_by_role("tab", name="Provider lab").click()
             page.get_by_role("button", name="Score provider evidence").click()
             expect(page.locator("#provider-output")).to_contain_text("BACKEND ERROR")
             expect(page.locator("#provider-output")).not_to_contain_text("offline-browser-model")
@@ -204,7 +204,7 @@ def run() -> None:
             expected_http_failures.remove(expected_provider_failure)
 
             stop_process(server_process)
-            page.get_by_role("button", name="Audit lab").click()
+            page.get_by_role("tab", name="Audit lab").click()
             page.get_by_role("button", name="Run audit").click()
             expect(page.locator("#audit-output")).to_contain_text("BACKEND ERROR")
             expect(page.locator("#audit-output")).not_to_contain_text("offline-browser-model")
