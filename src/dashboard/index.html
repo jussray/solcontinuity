@@ -28,16 +28,16 @@
       <article><span>Verification</span><strong>Playwright</strong><small>Built browser path</small></article>
     </section>
 
-    <nav class="tabs" aria-label="Dashboard sections">
-      <button type="button" data-tab="overview">Overview</button>
-      <button type="button" data-tab="evidence">Live evidence</button>
-      <button type="button" data-tab="audit">Audit lab</button>
-      <button type="button" data-tab="providers">Provider lab</button>
-      <button type="button" data-tab="architecture">Architecture</button>
-      <button type="button" data-tab="proof">Proof gates</button>
+    <nav class="tabs" aria-label="Dashboard sections" role="tablist">
+      <button id="tab-overview" type="button" role="tab" aria-controls="panel-overview" aria-selected="true" tabindex="0" data-tab="overview">Overview</button>
+      <button id="tab-evidence" type="button" role="tab" aria-controls="panel-evidence" aria-selected="false" tabindex="-1" data-tab="evidence">Live evidence</button>
+      <button id="tab-audit" type="button" role="tab" aria-controls="panel-audit" aria-selected="false" tabindex="-1" data-tab="audit">Audit lab</button>
+      <button id="tab-providers" type="button" role="tab" aria-controls="panel-providers" aria-selected="false" tabindex="-1" data-tab="providers">Provider lab</button>
+      <button id="tab-architecture" type="button" role="tab" aria-controls="panel-architecture" aria-selected="false" tabindex="-1" data-tab="architecture">Architecture</button>
+      <button id="tab-proof" type="button" role="tab" aria-controls="panel-proof" aria-selected="false" tabindex="-1" data-tab="proof">Proof gates</button>
     </nav>
 
-    <section class="panel" data-panel="overview">
+    <section id="panel-overview" class="panel" data-panel="overview" role="tabpanel" aria-labelledby="tab-overview">
       <div class="section-title">
         <div>
           <h2>80/20 release</h2>
@@ -54,7 +54,7 @@
       <aside class="callout" id="overview-evidence"><strong>Evidence:</strong> Loading the current project boundary.</aside>
     </section>
 
-    <section class="panel hidden" data-panel="evidence">
+    <section id="panel-evidence" class="panel hidden" data-panel="evidence" role="tabpanel" aria-labelledby="tab-evidence">
       <div class="section-title">
         <div>
           <p class="eyebrow">SOLANA ADAPTER EVIDENCE</p>
@@ -68,7 +68,7 @@
       <aside class="truth-note"><strong>Truth boundary:</strong> Adapter evidence proves only the tested application-layer behavior. It does not guarantee provider honesty, consensus safety, or universal transaction inclusion.</aside>
     </section>
 
-    <section class="panel hidden" data-panel="audit">
+    <section id="panel-audit" class="panel hidden" data-panel="audit" role="tabpanel" aria-labelledby="tab-audit">
       <div class="section-title">
         <div><h2>Manifest audit lab</h2><p>Edit the dependency shape and inspect the deterministic report.</p></div>
         <button id="reset-manifest" class="secondary" type="button">Reset</button>
@@ -81,7 +81,7 @@
       </div>
     </section>
 
-    <section class="panel hidden" data-panel="providers">
+    <section id="panel-providers" class="panel hidden" data-panel="providers" role="tabpanel" aria-labelledby="tab-providers">
       <div class="section-title">
         <div><h2>Provider evidence lab</h2><p>Score availability, operator diversity, latency, and response agreement.</p></div>
         <span class="pill">Python when connected</span>
@@ -92,7 +92,7 @@
       <aside class="callout"><strong>Truth boundary:</strong> A high score summarizes supplied observations. It does not prove an operator is honest or that an application is uncensorable.</aside>
     </section>
 
-    <section class="panel hidden" data-panel="architecture">
+    <section id="panel-architecture" class="panel hidden" data-panel="architecture" role="tabpanel" aria-labelledby="tab-architecture">
       <h2>Focused architecture</h2>
       <div class="flow" role="img" aria-label="An application sends JSON-RPC reads through the TypeScript continuity core to independent routes; adapter-specific paths can add platform writes and confirmation while Node and Python preserve evidence.">
         <div class="node"><strong>Application</strong><span>Read or adapter action</span></div>
@@ -106,7 +106,7 @@
       <aside class="callout"><strong>Truth boundary:</strong> SolContinuity improves application-layer continuity across declared routes. Solana is the first adapter, and that adapter does not alter Solana consensus or guarantee censorship can never occur.</aside>
     </section>
 
-    <section class="panel hidden" data-panel="proof">
+    <section id="panel-proof" class="panel hidden" data-panel="proof" role="tabpanel" aria-labelledby="tab-proof">
       <h2>Proof before claim</h2>
       <p id="proof-gate-summary" class="muted" role="status" aria-live="polite">Current proof receipts are not attached. Gates remain UNKNOWN until evidence is loaded.</p>
       <div class="proof-list">
@@ -125,5 +125,6 @@
     <p id="announcement" class="announcement" aria-live="polite"></p>
   </main>
   <script src="./app.js"></script>
+  <script src="./tabs.js"></script>
 </body>
 </html>

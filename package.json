@@ -43,7 +43,7 @@
     "test:node": "npm run build && node --test dist/tests/*.test.js",
     "test:runner": "node --test tests/python-runner.test.mjs",
     "test:python": "node scripts/run-python.mjs -m pytest python/tests -q",
-    "test:e2e": "npm run build && node scripts/run-python.mjs e2e/test_dashboard.py",
+    "test:e2e": "npm run build && node scripts/run-python.mjs e2e/test_dashboard.py && node scripts/run-python.mjs e2e/test_dashboard_accessibility.py",
     "test:consumer": "node scripts/external-consumer-smoke.mjs",
     "test:ai-routing": "node --test .ai-skills/runtime/*.test.mjs",
     "test": "npm run test:node && npm run test:runner && npm run test:python && npm run test:ai-routing",
