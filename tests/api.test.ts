@@ -186,3 +186,118 @@ test("provider scoring fails closed when analytics is not configured", async () 
     assert.equal(payload.error, "ANALYTICS_NOT_CONFIGURED");
   });
 });
+
+test("every response issues a signed device-fingerprint cookie on first visit", async () => {
+  await withServer(async (baseUrl) => {
+    const response = await fetch(`${baseUrl}/api/health`);
+    const setCookie = response.headers.get("set-cookie");
+    assert.ok(setCookie?.includes("sc_device="));
+    assert.match(setCookie ?? "", /HttpOnly/);
+    assert.match(setCookie ?? "", /SameSite=Strict/);
+  });
+});
+
+test("a returning device cookie is not reissued", async () => {
+  await withServer(async (baseUrl) => {
+    const first = await fetch(`${baseUrl}/api/health`);
+    const cookie = first.headers.get("set-cookie")?.split(";")[0];
+    assert.ok(cookie);
+    const second = await fetch(`${baseUrl}/api/health`, { headers: { cookie: cookie! } });
+    assert.equal(second.headers.get("set-cookie"), null);
+  });
+});
+
+test("rate limiting returns 429 once a fingerprint exhausts its budget", async () => {
+  const root = await mkdtemp(join(tmpdir(), "solcontinuity-ratelimit-"));
+  await writeFile(join(root, "index.html"), "<h1>SolContinuity</h1>", "utf8");
+  const manifestPath = join(root, "manifest.json");
+  await writeFile(manifestPath, JSON.stringify(validManifest), "utf8");
+  const server = createSolContinuityServer({
+    dashboardRoot: root,
+    exampleManifestPath: manifestPath,
+    rateLimit: { capacity: 2, refillPerSecond: 0.01 }
+  });
+  server.listen(0, "127.0.0.1");
+  await once(server, "listening");
+  const address = server.address();
+  if (!address || typeof address === "string") {
+    throw new Error("Server did not expose a TCP port.");
+  }
+  const baseUrl = `http://127.0.0.1:${address.port}`;
+
+  try {
+    const first = await fetch(`${baseUrl}/api/health`);
+    const cookie = first.headers.get("set-cookie")?.split(";")[0];
+    assert.ok(cookie);
+    const headers = { cookie: cookie! };
+    await fetch(`${baseUrl}/api/health`, { headers });
+    const limited = await fetch(`${baseUrl}/api/health`, { headers });
+    assert.equal(limited.status, 429);
+    const payload = (await limited.json()) as { error: string };
+    assert.equal(payload.error, "RATE_LIMITED");
+    assert.ok(limited.headers.get("retry-after"));
+  } finally {
+    await new Promise<void>((resolve, reject) => server.close((error) => (error ? reject(error) : resolve())));
+  }
+});
+
+test("session auth is enforced once a console token is configured", async () => {
+  const root = await mkdtemp(join(tmpdir(), "solcontinuity-auth-"));
+  await writeFile(join(root, "index.html"), "<h1>SolContinuity</h1>", "utf8");
+  const manifestPath = join(root, "manifest.json");
+  await writeFile(manifestPath, JSON.stringify(validManifest), "utf8");
+  const server = createSolContinuityServer({
+    dashboardRoot: root,
+    exampleManifestPath: manifestPath,
+    consoleToken: "correct-token",
+    cookieSecret: "test-cookie-secret"
+  });
+  server.listen(0, "127.0.0.1");
+  await once(server, "listening");
+  const address = server.address();
+  if (!address || typeof address === "string") {
+    throw new Error("Server did not expose a TCP port.");
+  }
+  const baseUrl = `http://127.0.0.1:${address.port}`;
+
+  try {
+    const healthResponse = await fetch(`${baseUrl}/api/health`);
+    assert.equal(healthResponse.status, 200);
+    const healthPayload = (await healthResponse.json()) as { authRequired: boolean };
+    assert.equal(healthPayload.authRequired, true);
+
+    const unauthenticated = await fetch(`${baseUrl}/api/overview`);
+    assert.equal(unauthenticated.status, 401);
+
+    const wrongToken = await fetch(`${baseUrl}/api/session/login`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ token: "wrong-token" })
+    });
+    assert.equal(wrongToken.status, 401);
+
+    const login = await fetch(`${baseUrl}/api/session/login`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ token: "correct-token" })
+    });
+    assert.equal(login.status, 204);
+    const sessionCookies = login.headers.getSetCookie().map((entry) => entry.split(";")[0]).join("; ");
+    assert.ok(sessionCookies.includes("sc_session="));
+
+    const authenticated = await fetch(`${baseUrl}/api/overview`, { headers: { cookie: sessionCookies } });
+    assert.equal(authenticated.status, 200);
+
+    const logout = await fetch(`${baseUrl}/api/session/logout`, {
+      method: "POST",
+      headers: { cookie: sessionCookies }
+    });
+    assert.equal(logout.status, 204);
+    const loggedOutCookies = logout.headers.getSetCookie().map((entry) => entry.split(";")[0]).join("; ");
+
+    const afterLogout = await fetch(`${baseUrl}/api/overview`, { headers: { cookie: loggedOutCookies } });
+    assert.equal(afterLogout.status, 401);
+  } finally {
+    await new Promise<void>((resolve, reject) => server.close((error) => (error ? reject(error) : resolve())));
+  }
+});

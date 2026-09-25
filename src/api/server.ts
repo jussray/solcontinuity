@@ -1,3 +1,4 @@
+import { randomBytes } from "node:crypto";
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 import { readFile, stat } from "node:fs/promises";
 import { extname, join, normalize, resolve } from "node:path";
@@ -6,6 +7,16 @@ import { auditManifest } from "../core/audit.js";
 import { ManifestValidationError } from "../core/errors.js";
 import { parseManifest } from "../core/manifest.js";
 import { loadEvidenceHistory } from "./evidence-history.js";
+import {
+  FingerprintRateLimiter,
+  clearSessionCookie,
+  computeFingerprint,
+  createSessionCookie,
+  hasValidSession,
+  parseCookies,
+  resolveDeviceIdentity,
+  timingSafeTokenEqual
+} from "./security.js";
 
 export interface SolContinuityServerOptions {
   readonly dashboardRoot?: string;
@@ -13,7 +24,15 @@ export interface SolContinuityServerOptions {
   readonly analyticsUrl?: string;
   readonly evidencePaths?: readonly string[];
   readonly expectedHeadSha?: string | undefined;
+  readonly consoleToken?: string | undefined;
+  readonly cookieSecret?: string;
+  readonly secureCookies?: boolean;
+  readonly rateLimit?: { readonly capacity: number; readonly refillPerSecond: number };
 }
+
+const UNAUTHENTICATED_PATHS = new Set(["/api/health", "/api/session/login", "/api/session/logout"]);
+const EXPENSIVE_REQUEST_COST = 4;
+const LOGIN_ATTEMPT_COST = 8;
 
 const contentTypes: Readonly<Record<string, string>> = {
   ".html": "text/html; charset=utf-8",
@@ -23,12 +42,21 @@ const contentTypes: Readonly<Record<string, string>> = {
   ".svg": "image/svg+xml"
 };
 
-function json(response: ServerResponse, status: number, body: unknown): void {
-  response.writeHead(status, {
-    "content-type": "application/json; charset=utf-8",
+function json(response: ServerResponse, status: number, body: unknown, setCookies: readonly string[] = []): void {
+  const headers: Record<string, string | string[]> = {
     "cache-control": "no-store",
     "x-content-type-options": "nosniff"
-  });
+  };
+  if (setCookies.length > 0) {
+    headers["set-cookie"] = [...setCookies];
+  }
+  if (status === 204) {
+    response.writeHead(status, headers);
+    response.end();
+    return;
+  }
+  headers["content-type"] = "application/json; charset=utf-8";
+  response.writeHead(status, headers);
   response.end(JSON.stringify(body));
 }
 
@@ -83,11 +111,66 @@ export function createSolContinuityServer(options: SolContinuityServerOptions = 
   const historyOptions = (limit: number) => analyticsUrl
     ? { analyticsUrl, limit }
     : { limit };
+  const consoleToken = (options.consoleToken ?? process.env.SOLCONTINUITY_CONSOLE_TOKEN?.trim() ?? "").trim() || null;
+  const cookieSecret = options.cookieSecret ?? process.env.SOLCONTINUITY_COOKIE_SECRET?.trim() ?? randomBytes(32).toString("hex");
+  const secureCookies = options.secureCookies ?? process.env.SOLCONTINUITY_COOKIE_SECURE === "1";
+  const rateLimiter = new FingerprintRateLimiter(
+    options.rateLimit?.capacity ?? 60,
+    options.rateLimit?.refillPerSecond ?? 1
+  );
 
   return createServer(async (request, response) => {
     const url = new URL(request.url ?? "/", `http://${request.headers.host ?? "127.0.0.1"}`);
+    const cookies = parseCookies(request.headers.cookie);
+    const identity = resolveDeviceIdentity(cookies, cookieSecret, secureCookies);
+    const setCookies: string[] = identity.setCookie ? [identity.setCookie] : [];
+    const remoteAddress = request.socket.remoteAddress ?? "unknown";
+    const fingerprint = computeFingerprint(identity.deviceId, remoteAddress, request.headers["user-agent"]);
 
     try {
+      const isExpensive = request.method === "POST" && (url.pathname === "/api/audit" || url.pathname === "/api/provider-score");
+      const isLoginAttempt = request.method === "POST" && url.pathname === "/api/session/login";
+      const requestCost = isLoginAttempt ? LOGIN_ATTEMPT_COST : isExpensive ? EXPENSIVE_REQUEST_COST : 1;
+      const rateLimit = rateLimiter.consume(fingerprint, requestCost);
+      if (!rateLimit.allowed) {
+        response.setHeader("retry-after", String(rateLimit.retryAfterSeconds ?? 1));
+        json(response, 429, {
+          error: "RATE_LIMITED",
+          message: "Too many requests from this client.",
+          retryAfterSeconds: rateLimit.retryAfterSeconds
+        }, setCookies);
+        return;
+      }
+
+      if (request.method === "POST" && url.pathname === "/api/session/login") {
+        if (!consoleToken) {
+          json(response, 503, { error: "AUTH_NOT_CONFIGURED" }, setCookies);
+          return;
+        }
+        const payload = await readJson(request);
+        const provided = typeof payload === "object" && payload !== null && "token" in payload
+          ? (payload as { token: unknown }).token
+          : null;
+        if (typeof provided !== "string" || !timingSafeTokenEqual(provided, consoleToken)) {
+          json(response, 401, { error: "INVALID_TOKEN" }, setCookies);
+          return;
+        }
+        json(response, 204, null, [...setCookies, createSessionCookie(cookieSecret, secureCookies)]);
+        return;
+      }
+
+      if (request.method === "POST" && url.pathname === "/api/session/logout") {
+        json(response, 204, null, [...setCookies, clearSessionCookie(secureCookies)]);
+        return;
+      }
+
+      if (consoleToken && url.pathname.startsWith("/api/") && !UNAUTHENTICATED_PATHS.has(url.pathname)) {
+        if (!hasValidSession(cookies, cookieSecret)) {
+          json(response, 401, { error: "AUTHENTICATION_REQUIRED" }, setCookies);
+          return;
+        }
+      }
+
       if (request.method === "GET" && url.pathname === "/api/health") {
         json(response, 200, {
           service: "solcontinuity-api",
@@ -95,8 +178,9 @@ export function createSolContinuityServer(options: SolContinuityServerOptions = 
           analyticsConfigured: Boolean(analyticsUrl),
           evidenceSources: evidencePaths.length,
           runtimeHeadBound: Boolean(expectedHeadSha),
+          authRequired: Boolean(consoleToken),
           timestamp: new Date().toISOString()
-        });
+        }, setCookies);
         return;
       }
 
@@ -131,7 +215,7 @@ export function createSolContinuityServer(options: SolContinuityServerOptions = 
             liveDevnet: liveDevnetVerified ? true : null,
             externalSelfHost: null
           }
-        });
+        }, setCookies);
         return;
       }
 
@@ -142,16 +226,16 @@ export function createSolContinuityServer(options: SolContinuityServerOptions = 
           json(response, 400, {
             error: "INVALID_LIMIT",
             message: "limit must be an integer between 1 and 100."
-          });
+          }, setCookies);
           return;
         }
-        json(response, 200, await loadEvidenceHistory(evidencePaths, historyOptions(limit)));
+        json(response, 200, await loadEvidenceHistory(evidencePaths, historyOptions(limit)), setCookies);
         return;
       }
 
       if (request.method === "POST" && url.pathname === "/api/audit") {
         const manifest = parseManifest(await readJson(request));
-        json(response, 200, auditManifest(manifest));
+        json(response, 200, auditManifest(manifest), setCookies);
         return;
       }
 
@@ -160,7 +244,7 @@ export function createSolContinuityServer(options: SolContinuityServerOptions = 
           json(response, 503, {
             error: "ANALYTICS_NOT_CONFIGURED",
             message: "Set SOLCONTINUITY_ANALYTICS_URL to enable provider scoring."
-          });
+          }, setCookies);
           return;
         }
         const payload = await readJson(request);
@@ -171,33 +255,37 @@ export function createSolContinuityServer(options: SolContinuityServerOptions = 
           signal: AbortSignal.timeout(5_000)
         });
         const body = (await upstream.json()) as unknown;
-        json(response, upstream.status, body);
+        json(response, upstream.status, body, setCookies);
         return;
       }
 
       if (request.method !== "GET" && request.method !== "HEAD") {
-        json(response, 405, { error: "METHOD_NOT_ALLOWED" });
+        json(response, 405, { error: "METHOD_NOT_ALLOWED" }, setCookies);
         return;
       }
 
       const filePath = safeStaticPath(dashboardRoot, url.pathname);
       if (!filePath) {
-        json(response, 400, { error: "INVALID_PATH" });
+        json(response, 400, { error: "INVALID_PATH" }, setCookies);
         return;
       }
       const metadata = await stat(filePath).catch(() => null);
       if (!metadata?.isFile()) {
-        json(response, 404, { error: "NOT_FOUND" });
+        json(response, 404, { error: "NOT_FOUND" }, setCookies);
         return;
       }
       const body = await readFile(filePath);
-      response.writeHead(200, {
+      const staticHeaders: Record<string, string | string[]> = {
         "content-type": contentTypes[extname(filePath)] ?? "application/octet-stream",
         "content-security-policy": "default-src 'self'; style-src 'self'; script-src 'self'; connect-src 'self' http://127.0.0.1:8001; object-src 'none'; base-uri 'none'; frame-ancestors 'none'",
         "referrer-policy": "no-referrer",
         "x-content-type-options": "nosniff",
         "x-frame-options": "DENY"
-      });
+      };
+      if (setCookies.length > 0) {
+        staticHeaders["set-cookie"] = setCookies;
+      }
+      response.writeHead(200, staticHeaders);
       if (request.method === "HEAD") {
         response.end();
       } else {
@@ -205,18 +293,18 @@ export function createSolContinuityServer(options: SolContinuityServerOptions = 
       }
     } catch (error) {
       if (error instanceof ManifestValidationError) {
-        json(response, 400, { error: error.code, issues: error.issues });
+        json(response, 400, { error: error.code, issues: error.issues }, setCookies);
         return;
       }
       if (error instanceof SyntaxError) {
-        json(response, 400, { error: "INVALID_JSON", message: error.message });
+        json(response, 400, { error: "INVALID_JSON", message: error.message }, setCookies);
         return;
       }
       console.error(`SolContinuity internal error: ${error instanceof Error ? error.name : "UnknownError"}`);
       json(response, 500, {
         error: "INTERNAL_ERROR",
         message: "Internal service failure."
-      });
+      }, setCookies);
     }
   });
 }

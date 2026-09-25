@@ -26,6 +26,7 @@ Solana remains the first fully implemented adapter and live proof environment. T
 - reusable JavaScript quorum-read and signed-broadcast examples
 - stable package entrypoint and generated TypeScript declarations
 - Node.js API and self-hostable technical console
+- device-fingerprint rate limiting and opt-in session authentication for the Console
 - sanitized Solana evidence-history endpoint
 - Python FastAPI analytics for provider and evidence scoring
 - standalone Python evidence-report CLI
@@ -109,6 +110,26 @@ npm start
 ```
 
 The Node API exposes sanitized history at `GET /api/evidence/history`. Current transaction-history records are produced by the Solana adapter. They return signatures, provider observations, confirmation state, and optional Python assessment, but never return `transactionBase64`.
+
+## Console security
+
+The Node API server binds to `127.0.0.1` by default and, out of the box, trusts anyone who can reach that loopback port — matching its default "local self-hosted dev tool" threat model. Two independent protections are available for operators who expose the Console beyond loopback:
+
+**Device-fingerprint rate limiting** applies unconditionally, with no configuration required. Every response issues a signed, `HttpOnly`, `SameSite=Strict` `sc_device` cookie; requests are keyed by a hash of that device id plus the client's IP address and user agent, and a token-bucket limiter throttles abusive clients (429 `RATE_LIMITED` with a `Retry-After` header) — more strictly on the expensive `POST /api/audit` and `POST /api/provider-score` endpoints, and most strictly on login attempts.
+
+**Session authentication** is opt-in. Set `SOLCONTINUITY_CONSOLE_TOKEN` to a secret value and every `/api/*` route except `/api/health`, `/api/session/login`, and `/api/session/logout` starts returning `401 AUTHENTICATION_REQUIRED` until the caller presents a valid session:
+
+```bash
+curl -c cookies.txt -X POST http://127.0.0.1:4173/api/session/login \
+  -H 'content-type: application/json' \
+  -d '{"token":"<SOLCONTINUITY_CONSOLE_TOKEN value>"}'
+
+curl -b cookies.txt http://127.0.0.1:4173/api/overview
+```
+
+`POST /api/session/login` sets a signed, `HttpOnly`, `SameSite=Strict` `sc_session` cookie (12-hour expiry); `POST /api/session/logout` clears it. The dashboard's own UI does not yet include a login form — this is a backend contract for operators who front the Console with their own auth flow, reverse proxy, or a future login screen.
+
+Cookies are signed with an HMAC secret: set `SOLCONTINUITY_COOKIE_SECRET` to a stable value so sessions and device ids survive process restarts (otherwise a random secret is generated per process start, invalidating existing cookies on every restart). Set `SOLCONTINUITY_COOKIE_SECURE=1` when the Console sits behind a TLS-terminating reverse proxy, to add the `Secure` cookie attribute.
 
 ## JSON-RPC core
 
