@@ -2,10 +2,13 @@ import { createServer, type IncomingMessage, type ServerResponse } from "node:ht
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { processGitHubWebhook, verifyWebhookSignature, type GitHubAppConfig } from "./app.js";
+import { FingerprintRateLimiter } from "../api/security.js";
 
 const MAX_WEBHOOK_BYTES = 1_000_000;
 const DELIVERY_TTL_MS = 10 * 60 * 1000;
 const MAX_TRACKED_DELIVERIES = 2_000;
+const WEBHOOK_RATE_LIMIT_CAPACITY = 120;
+const WEBHOOK_RATE_LIMIT_REFILL_PER_SECOND = 2;
 const REQUIRED_GITHUB_APP_ENV = [
   "SOLCONTINUITY_GITHUB_APP_ID",
   "SOLCONTINUITY_GITHUB_PRIVATE_KEY",
@@ -88,6 +91,7 @@ export function createGitHubAppBootstrapServer(missingEnvironmentVariables: stri
 
 export function createGitHubAppServer(config: GitHubAppConfig) {
   const deliveries = new Map<string, number>();
+  const rateLimiter = new FingerprintRateLimiter(WEBHOOK_RATE_LIMIT_CAPACITY, WEBHOOK_RATE_LIMIT_REFILL_PER_SECOND);
 
   function pruneDeliveries(now: number): void {
     for (const [delivery, seenAt] of deliveries) {
@@ -119,6 +123,14 @@ export function createGitHubAppServer(config: GitHubAppConfig) {
 
     if (request.method !== "POST" || url.pathname !== "/github/webhook") {
       json(response, 404, { error: "NOT_FOUND" });
+      return;
+    }
+
+    const remoteAddress = request.socket.remoteAddress ?? "unknown";
+    const rateLimit = rateLimiter.consume(remoteAddress);
+    if (!rateLimit.allowed) {
+      response.setHeader("retry-after", String(rateLimit.retryAfterSeconds ?? 1));
+      json(response, 429, { error: "RATE_LIMITED", retryAfterSeconds: rateLimit.retryAfterSeconds });
       return;
     }
 
