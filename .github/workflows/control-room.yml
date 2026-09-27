@@ -6,7 +6,9 @@ on:
       - 'AGENTS_FOUNDER_INTELLIGENCE.md'
       - 'control-room.manifest.json'
       - '.control-room/repository.manifest.json'
+      - '.control-room/council-residency.contract.json'
       - 'scripts/verify-control-room-contract.mjs'
+      - 'scripts/verify-protected-intelligence-contract.mjs'
       - '.github/workflows/control-room.yml'
       - '.github/workflows/ci.yml'
       - 'package.json'
@@ -25,7 +27,9 @@ on:
       - 'AGENTS_FOUNDER_INTELLIGENCE.md'
       - 'control-room.manifest.json'
       - '.control-room/repository.manifest.json'
+      - '.control-room/council-residency.contract.json'
       - 'scripts/verify-control-room-contract.mjs'
+      - 'scripts/verify-protected-intelligence-contract.mjs'
       - '.github/workflows/control-room.yml'
       - '.github/workflows/ci.yml'
       - 'package.json'
@@ -91,6 +95,9 @@ jobs:
 
       - name: Verify repo-local Control Room contract
         run: node scripts/verify-control-room-contract.mjs
+
+      - name: Verify protected intelligence and live-proof contract
+        run: node scripts/verify-protected-intelligence-contract.mjs
 
       - name: Run canonical repository verification
         shell: bash
