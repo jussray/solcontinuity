@@ -19,9 +19,15 @@ test("provider states never expose secret values", () => {
   process.env.ANTHROPIC_API_KEY = "anthropic-secret";
   process.env.MODEL_API_KEY = "muse-secret";
   const states = solProviderStates();
-  assert.equal(states.openai.state, "INTEGRATED");
-  assert.equal(states.anthropic.state, "INTEGRATED");
-  assert.equal(states.muse.state, "INTEGRATED");
+  const openai = states.openai;
+  const anthropic = states.anthropic;
+  const muse = states.muse;
+  assert.ok(openai);
+  assert.ok(anthropic);
+  assert.ok(muse);
+  assert.equal(openai.state, "INTEGRATED");
+  assert.equal(anthropic.state, "INTEGRATED");
+  assert.equal(muse.state, "INTEGRATED");
   assert.doesNotMatch(JSON.stringify(states), /secret/);
 });
 
