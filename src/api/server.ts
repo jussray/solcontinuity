@@ -7,6 +7,7 @@ import { auditManifest } from "../core/audit.js";
 import { ManifestValidationError } from "../core/errors.js";
 import { parseManifest } from "../core/manifest.js";
 import { loadEvidenceHistory } from "./evidence-history.js";
+import { invokeSolProvider, solProviderStates } from "./provider-runtime.js";
 import {
   FingerprintRateLimiter,
   clearSessionCookie,
@@ -128,7 +129,11 @@ export function createSolContinuityServer(options: SolContinuityServerOptions = 
     const fingerprint = computeFingerprint(identity.deviceId, remoteAddress, request.headers["user-agent"]);
 
     try {
-      const isExpensive = request.method === "POST" && (url.pathname === "/api/audit" || url.pathname === "/api/provider-score");
+      const isExpensive = request.method === "POST" && (
+        url.pathname === "/api/audit" ||
+        url.pathname === "/api/provider-score" ||
+        url.pathname === "/api/providers/invoke"
+      );
       const isLoginAttempt = request.method === "POST" && url.pathname === "/api/session/login";
       const requestCost = isLoginAttempt ? LOGIN_ATTEMPT_COST : isExpensive ? EXPENSIVE_REQUEST_COST : 1;
       const rateLimit = rateLimiter.consume(fingerprint, requestCost);
@@ -181,6 +186,32 @@ export function createSolContinuityServer(options: SolContinuityServerOptions = 
           authRequired: Boolean(consoleToken),
           timestamp: new Date().toISOString()
         }, setCookies);
+        return;
+      }
+
+      if ((url.pathname === "/api/providers" || url.pathname === "/api/providers/invoke") && !consoleToken) {
+        json(response, 503, { error: "AUTH_NOT_CONFIGURED" }, setCookies);
+        return;
+      }
+
+      if (request.method === "GET" && url.pathname === "/api/providers") {
+        json(response, 200, {
+          service: "solcontinuity-api",
+          providers: solProviderStates(),
+          authority: "none"
+        }, setCookies);
+        return;
+      }
+
+      if (request.method === "POST" && url.pathname === "/api/providers/invoke") {
+        try {
+          const result = await invokeSolProvider(await readJson(request));
+          json(response, 200, { service: "solcontinuity-api", result }, setCookies);
+        } catch (error) {
+          json(response, 503, {
+            error: error instanceof Error ? error.message : "PROVIDER_INVOCATION_FAILED"
+          }, setCookies);
+        }
         return;
       }
 
