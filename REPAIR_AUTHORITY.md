@@ -20,6 +20,49 @@ A trusted proof executor may use configured public/read-only RPC observations an
 
 Every repair must bind repository/base/head, provider/network identity, failure fingerprint, evidence-only proof cookies, before state, rollback, and post-action readback.
 
+## Secure SDLC / AppSec repair loop
+
+Security analysis belongs inside delivery before production. Sol treats these as representative security workflows:
+
+- **continuous code scanning** bound to the exact repository/head/scope;
+- **test-environment scanning** with runtime evidence kept separate from source evidence;
+- **security-finding validation** that independently decides reproduced / not reproduced / stale / false-positive / unknown;
+- **security patch automation** limited to the smallest reversible repair under separate write authority, followed by exact-head, Playwright/runtime, rollback, and provider readback as applicable.
+
+A scanner finding, provider warning, model suggestion, or automated patch proposal is evidence or advice. None grants signing, mutation, deployment, merge, value-transfer, or provider authority.
+
+## Runtime stop/refusal rule
+
+When a model/provider/security workflow stops, preserve evidence before interpreting the outcome.
+
+Preserve internally when available:
+
+- exact request;
+- selected model/runtime;
+- product surface;
+- organization/user references relevant to the execution context;
+- intended defensive outcome;
+- actual error/notice/response rather than a remembered template;
+- request/trace IDs and timing;
+- last execution boundary proven to have received the request;
+- first transition whose successful forward progress is not proven;
+- tool calls;
+- changed files/state;
+- rollback evidence; and
+- complete versus incomplete work.
+
+A refusal-looking message does not prove a model refusal unless model execution and the completion itself are evidenced. A monitor stop after a write does not restore the changed state, complete the workflow, or authorize blind resubmission. Reconcile side effects before retry.
+
+### Authorization is independent
+
+Refusal behavior does not define authorization. Neither do provider acceptance, HTTP status, successful completion, tool execution, monitor stop, or customer-visible wording.
+
+Diagnose what happened first. Review what actually changed second. Evaluate authorization third from the separate authority plane.
+
+Represent authorization independently as `AUTHORIZED`, `UNAUTHORIZED`, `UNKNOWN`, or `NOT_EVALUATED`. Runtime signals must never upgrade that state.
+
+Raw request/response evidence stays private. Share only redacted review records through an approved route, without credentials, private keys, unnecessary identifiers, or unrelated sensitive content.
+
 ## Hard boundary
 
 This repair contract does not authorize:
@@ -31,7 +74,7 @@ This repair contract does not authorize:
 - destructive provider/account operations;
 - credential rotation/exposure, new spend, or ownership transfer.
 
-Any live Devnet mutation that repository policy already classifies as founder-gated remains founder-gated; a failed test does not widen that authority.
+Any live Devnet mutation that repository policy already classifies as founder-gated remains founder-gated; a failed test, refusal, provider acceptance, or monitored stop does not widen that authority.
 
 ## Witness roles
 
