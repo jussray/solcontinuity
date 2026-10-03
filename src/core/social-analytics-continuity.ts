@@ -143,7 +143,7 @@ export function buildSocialAnalyticsContinuityMarker(
 
   const identity = {
     version: 1 as const,
-    kind: SOL_SOCIAL_ANALYTICS_CONTINUITY_KIND,
+    kind: SOL_SOCIAL_ANALYTICS_CONTINUITY_KIND as typeof SOL_SOCIAL_ANALYTICS_CONTINUITY_KIND,
     source_decision_hash: sourceDecisionHash,
     control_receipt_hash: decision.control_receipt_hash,
     challenger_receipt_hash: decision.challenger_receipt_hash,
