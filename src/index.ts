@@ -10,4 +10,15 @@ export {
   QuorumError,
   ResilienceError
 } from "./core/errors.js";
+export {
+  CHIEF_SOCIAL_ANALYTICS_DECISION_KIND,
+  SOL_SOCIAL_ANALYTICS_CONTINUITY_KIND,
+  buildSocialAnalyticsContinuityMarker,
+  compareSocialAnalyticsContinuity,
+  validateChiefSocialAnalyticsDecision
+} from "./core/social-analytics-continuity.js";
+export type {
+  ChiefSocialAnalyticsDecisionIdentity,
+  SocialAnalyticsContinuityMarker
+} from "./core/social-analytics-continuity.js";
 export type * from "./core/types.js";
