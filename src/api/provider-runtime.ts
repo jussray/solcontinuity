@@ -31,6 +31,9 @@ function validId(value: unknown): string | null {
 }
 
 function extractText(provider: ProviderName, body: Record<string, unknown>): string {
+  if (provider === "openai" && body.status !== "completed") {
+    throw new Error("OPENAI_NON_COMPLETED_RESPONSE");
+  }
   if (provider === "anthropic") {
     const content = Array.isArray(body.content) ? body.content : [];
     return content.flatMap((entry) => {

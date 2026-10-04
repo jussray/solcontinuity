@@ -1,0 +1,19 @@
+{
+  "schema": "juss/openai-completion-repair@v1",
+  "repository": "jussray/solcontinuity",
+  "implementationParent": "f66a32685ed520352078047a6e7da6bae8259abc",
+  "targetBranch": "fix/openai-completion-boundary-20261004",
+  "source": "src/api/provider-runtime.ts",
+  "sourceSha256": "3dc923e72ab30edbb5234744e4fd7fb986bba8f0972e07ea07d47e72bc97508d",
+  "goal": "Reject non-completed OpenAI responses before partial text is promoted to a successful result",
+  "repairClass": "CODE_DEFECT",
+  "preFixEvidence": "Six regression cases accepted partial text as success before the guard in this session",
+  "localProof": "Focused provider regressions pass; final exact-head checks are required after committing",
+  "liveProviderVerified": false,
+  "deploymentVerified": false,
+  "modelDefaultsChanged": false,
+  "automaticRetryAdded": false,
+  "authority": "none",
+  "rollback": "Revert only the focused completion-boundary implementation commit after review",
+  "nextGate": "Exact-head local proof, existing review/CI gates, then exact-candidate founder approval before integration"
+}

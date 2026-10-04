@@ -37,7 +37,7 @@ test("OpenAI invocation returns bounded evidence with no authority", async () =>
     assert.equal(String(url), "https://api.openai.com/v1/responses");
     assert.equal((init?.headers as Record<string, string>).authorization, "Bearer openai-key");
     assert.doesNotMatch(String(init?.body), /openai-key/);
-    return new Response(JSON.stringify({id: "resp_sol_1", output_text: "Sol result"}), {status: 200});
+    return new Response(JSON.stringify({id: "resp_sol_1", status: "completed", output_text: "Sol result"}), {status: 200});
   });
   assert.equal(result.evidenceRef, "provider:openai:resp_sol_1");
   assert.equal(result.authority, "none");
@@ -52,3 +52,18 @@ test("restricted provider context fails before network use", async () => {
     /RESTRICTED_CONTEXT/
   );
 });
+
+for (const status of ["incomplete", "failed", "cancelled", "queued", "in_progress", undefined]) {
+  test(`OpenAI status ${status} rejects partial text without retrying`, async () => {
+    process.env.OPENAI_API_KEY = "test-key";
+    let calls = 0;
+    await assert.rejects(() => invokeSolProvider({provider: "openai", prompt: "Challenge drift."}, async () => {
+      calls += 1;
+      return new Response(JSON.stringify({
+        id: "resp_partial", status, output_text: "unfinished answer",
+        error: {message: "untrusted-provider-detail"},
+      }), {status: 200});
+    }), {message: "OPENAI_NON_COMPLETED_RESPONSE"});
+    assert.equal(calls, 1);
+  });
+}
