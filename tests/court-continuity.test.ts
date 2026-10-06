@@ -169,3 +169,38 @@ test("protected API accepts exact handoff and keeps authority at none", async ()
     await new Promise<void>((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));
   }
 });
+
+
+test("stale witnesses do not inflate admissible unique-chain count", () => {
+  const source = handoff();
+  const stale = {
+    id: "old-pr",
+    status: "INFERRED",
+    class: "repository_source",
+    evidenceRef: "github:old-pr",
+    sourceFingerprint: "chain:github:old-pr",
+    observedAt: "2026-10-06T04:11:00Z",
+    headSha: "c".repeat(40),
+    duplicateOf: null,
+    stale: true,
+    staleReasons: ["head-sha-mismatch"],
+  };
+  const core = {
+    ...source,
+    evidenceSummary: {
+      ...(source.evidenceSummary as Record<string, unknown>),
+      total: 2,
+      admissible: 1,
+      stale: 1,
+      uniqueChains: 1,
+      duplicateChains: 0,
+    },
+    witnesses: [...(source.witnesses as unknown[]), stale],
+  };
+  const { handoffFingerprint: _ignored, ...withoutFingerprint } = core;
+  const candidate = { ...withoutFingerprint, handoffFingerprint: sha(withoutFingerprint) };
+  const marker = buildCourtContinuityMarker(candidate, { checkedAt: "2026-10-06T04:30:00Z" });
+  assert.equal(marker.unique_evidence_chain_count, 1);
+  assert.equal(marker.continuity_state, "CHALLENGE");
+  assert.deepEqual(marker.stale_witness_ids, ["old-pr"]);
+});
