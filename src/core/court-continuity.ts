@@ -154,17 +154,25 @@ export function buildCourtContinuityMarker(
 
   const staleWitnessIds: string[] = [];
   const sourceFingerprints: string[] = [];
+  const admissibleSourceFingerprints: string[] = [];
   for (const value of witnesses) {
     const witness = asRecord(value, "witness");
     const id = text(witness.id, "witness.id", 160);
     const witnessHead = fullSha(witness.headSha, "witness.headSha");
     const sourceFingerprint = text(witness.sourceFingerprint, "witness.sourceFingerprint", 240);
     sourceFingerprints.push(sourceFingerprint);
-    if (witness.stale === true || witnessHead !== headSha) staleWitnessIds.push(id);
+    const stale = witness.stale === true || witnessHead !== headSha;
+    if (stale) {
+      staleWitnessIds.push(id);
+    } else {
+      admissibleSourceFingerprints.push(sourceFingerprint);
+    }
   }
 
+  // Kody's witness receipt counts duplicate chains across all witnesses, while
+  // uniqueChains intentionally counts only admissible/fresh chains.
   const duplicateChainCount = sourceFingerprints.length - new Set(sourceFingerprints).size;
-  const uniqueEvidenceChainCount = new Set(sourceFingerprints).size;
+  const uniqueEvidenceChainCount = new Set(admissibleSourceFingerprints).size;
   if (nonNegativeInteger(summary.duplicateChains, "evidenceSummary.duplicateChains") !== duplicateChainCount) {
     throw new Error("COURT_CONTINUITY_REJECTED: duplicate-chain summary disagrees with witnesses");
   }
