@@ -117,7 +117,7 @@ jobs:
           set -euo pipefail
           shim_dir="$RUNNER_TEMP/python3-only-path"
           PATH="$shim_dir:$PATH" PYTHON_BIN=python3 npm run verify
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: always()
         with:
           name: verification-evidence-${{ env.EXPECTED_HEAD_SHA }}
