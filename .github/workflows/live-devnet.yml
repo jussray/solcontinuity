@@ -14,7 +14,7 @@ jobs:
       EXPECTED_HEAD_SHA: ${{ github.sha }}
     steps:
       - name: Check out exact dispatched head
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           ref: ${{ github.sha }}
           persist-credentials: false
