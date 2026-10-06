@@ -372,9 +372,10 @@ export function createSolContinuityServer(options: SolContinuityServerOptions = 
 
 async function main(): Promise<void> {
   const port = Number(process.env.PORT ?? 4173);
+  const host = process.env.SOLCONTINUITY_HOST?.trim() || "127.0.0.1";
   const server = createSolContinuityServer();
-  server.listen(port, "127.0.0.1", () => {
-    console.log(`SolContinuity console: http://127.0.0.1:${port}`);
+  server.listen(port, host, () => {
+    console.log(`SolContinuity console: http://${host}:${port}`);
   });
 }
 
