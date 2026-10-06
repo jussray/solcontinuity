@@ -6,6 +6,7 @@ import { fileURLToPath } from "node:url";
 import { auditManifest } from "../core/audit.js";
 import { ManifestValidationError } from "../core/errors.js";
 import { parseManifest } from "../core/manifest.js";
+import { buildCourtContinuityMarker } from "../core/court-continuity.js";
 import { loadEvidenceHistory } from "./evidence-history.js";
 import { invokeSolProvider, solProviderStates } from "./provider-runtime.js";
 import {
@@ -26,12 +27,13 @@ export interface SolContinuityServerOptions {
   readonly evidencePaths?: readonly string[];
   readonly expectedHeadSha?: string | undefined;
   readonly consoleToken?: string | undefined;
+  readonly courtBridgeToken?: string | undefined;
   readonly cookieSecret?: string;
   readonly secureCookies?: boolean;
   readonly rateLimit?: { readonly capacity: number; readonly refillPerSecond: number };
 }
 
-const UNAUTHENTICATED_PATHS = new Set(["/api/health", "/api/session/login", "/api/session/logout"]);
+const UNAUTHENTICATED_PATHS = new Set(["/api/health", "/api/session/login", "/api/session/logout", "/api/court/continuity"]);
 const EXPENSIVE_REQUEST_COST = 4;
 const LOGIN_ATTEMPT_COST = 8;
 
@@ -113,6 +115,7 @@ export function createSolContinuityServer(options: SolContinuityServerOptions = 
     ? { analyticsUrl, limit }
     : { limit };
   const consoleToken = (options.consoleToken ?? process.env.SOLCONTINUITY_CONSOLE_TOKEN?.trim() ?? "").trim() || null;
+  const courtBridgeToken = (options.courtBridgeToken ?? process.env.SOLCONTINUITY_COURT_BRIDGE_TOKEN?.trim() ?? "").trim() || null;
   const cookieSecret = options.cookieSecret ?? process.env.SOLCONTINUITY_COOKIE_SECRET?.trim() ?? randomBytes(32).toString("hex");
   const secureCookies = options.secureCookies ?? process.env.SOLCONTINUITY_COOKIE_SECURE === "1";
   const rateLimiter = new FingerprintRateLimiter(
@@ -132,7 +135,8 @@ export function createSolContinuityServer(options: SolContinuityServerOptions = 
       const isExpensive = request.method === "POST" && (
         url.pathname === "/api/audit" ||
         url.pathname === "/api/provider-score" ||
-        url.pathname === "/api/providers/invoke"
+        url.pathname === "/api/providers/invoke" ||
+        url.pathname === "/api/court/continuity"
       );
       const isLoginAttempt = request.method === "POST" && url.pathname === "/api/session/login";
       const requestCost = isLoginAttempt ? LOGIN_ATTEMPT_COST : isExpensive ? EXPENSIVE_REQUEST_COST : 1;
@@ -174,6 +178,32 @@ export function createSolContinuityServer(options: SolContinuityServerOptions = 
           json(response, 401, { error: "AUTHENTICATION_REQUIRED" }, setCookies);
           return;
         }
+      }
+
+      if (request.method === "POST" && url.pathname === "/api/court/continuity") {
+        if (!courtBridgeToken) {
+          json(response, 503, { error: "COURT_BRIDGE_NOT_CONFIGURED" }, setCookies);
+          return;
+        }
+        const bearer = (request.headers.authorization ?? "").match(/^Bearer\s+(.+)$/i)?.[1] ?? "";
+        if (!timingSafeTokenEqual(bearer, courtBridgeToken)) {
+          json(response, 401, { error: "INVALID_COURT_BRIDGE_TOKEN" }, setCookies);
+          return;
+        }
+        try {
+          const marker = buildCourtContinuityMarker(await readJson(request));
+          json(response, 200, {
+            service: "solcontinuity-api",
+            marker,
+            authority: "none"
+          }, setCookies);
+        } catch (error) {
+          json(response, 400, {
+            error: "INVALID_COURT_HANDOFF",
+            message: error instanceof Error ? error.message : "Court continuity handoff rejected."
+          }, setCookies);
+        }
+        return;
       }
 
       if (request.method === "GET" && url.pathname === "/api/health") {
