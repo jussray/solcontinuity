@@ -225,3 +225,8 @@ prompts/        Founder and product review operating artifacts
 ## Founder gates
 
 Registry publishing, deployment, spending, grant submission, secrets, live transaction tests, new platform-adapter claims, and merge remain explicit founder decisions. No destructive operation is included.
+
+
+### OpenAI response completion boundary
+
+The bounded OpenAI adapter requires `status: completed` before returning text as a successful result. Incomplete, failed, cancelled, queued, in-progress, and missing-status responses fail closed, even when they contain partial text. This check does not retry a stopped request, change model defaults, enable a provider, or grant execution authority. Source tests are separate from live provider and deployment evidence.

@@ -1,0 +1,54 @@
+name: Sol Social Analytics Continuity
+
+on:
+  pull_request:
+    paths:
+      - "src/core/social-analytics-continuity.ts"
+      - "src/index.ts"
+      - "tests/social-analytics-continuity.test.ts"
+      - ".github/workflows/social-analytics-continuity.yml"
+  push:
+    branches: [main]
+    paths:
+      - "src/core/social-analytics-continuity.ts"
+      - "src/index.ts"
+      - "tests/social-analytics-continuity.test.ts"
+      - ".github/workflows/social-analytics-continuity.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  EXPECTED_HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+
+jobs:
+  verify:
+    name: Verify exact social receipt lineage
+    runs-on: ubuntu-22.04
+    timeout-minutes: 8
+    steps:
+      - name: Check out exact head
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ env.EXPECTED_HEAD_SHA }}
+          persist-credentials: false
+      - name: Verify exact head
+        shell: bash
+        run: |
+          actual="$(git rev-parse HEAD)"
+          printf 'expected=%s\nactual=%s\n' "$EXPECTED_HEAD_SHA" "$actual"
+          test "$actual" = "$EXPECTED_HEAD_SHA"
+      - name: Set up Node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+        with:
+          node-version: "24"
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+      - name: Typecheck
+        run: npm run typecheck
+      - name: Build
+        run: npm run build
+      - name: Run focused continuity tests
+        run: node --test dist/tests/social-analytics-continuity.test.js
