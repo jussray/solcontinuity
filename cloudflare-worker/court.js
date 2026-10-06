@@ -152,18 +152,17 @@ async function buildMarker(input, checkedAt = new Date().toISOString()) {
   };
 }
 
-export default {
-  async fetch(request, env) {
+async function handleRequest(request) {
     const url = new URL(request.url);
     if (request.method === 'GET' && url.pathname === '/health') {
       return json({
         service: 'solcontinuity-court',
-        release_sha: FULL_SHA.test(String(env.SOL_COURT_RELEASE_SHA || '')) ? String(env.SOL_COURT_RELEASE_SHA).toLowerCase() : 'unknown',
+        release_sha: FULL_SHA.test(String(SOL_COURT_RELEASE_SHA || '')) ? String(env.SOL_COURT_RELEASE_SHA).toLowerCase() : 'unknown',
         authority: 'none',
       });
     }
     if (request.method !== 'POST' || url.pathname !== '/api/court/continuity') return json({ error: 'not found' }, 404);
-    if (!env.SOLCONTINUITY_COURT_BRIDGE_TOKEN) return json({ error: 'court bridge not configured' }, 503);
+    if (!SOLCONTINUITY_COURT_BRIDGE_TOKEN) return json({ error: 'court bridge not configured' }, 503);
     const bearer = (request.headers.get('authorization') || '').match(/^Bearer\s+(.+)$/i)?.[1] || '';
     if (!timingSafeEqual(bearer, env.SOLCONTINUITY_COURT_BRIDGE_TOKEN)) return json({ error: 'unauthorized' }, 401);
     try {
@@ -172,5 +171,9 @@ export default {
     } catch (error) {
       return json({ error: error instanceof Error ? error.message : 'invalid Court handoff' }, 400);
     }
-  },
-};
+
+}
+
+addEventListener('fetch', (event) => {
+  event.respondWith(handleRequest(event.request));
+});
