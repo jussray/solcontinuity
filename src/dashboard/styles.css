@@ -99,3 +99,36 @@ pre { overflow-x: auto; white-space: pre-wrap; overflow-wrap: anywhere; border: 
 .announcement { min-height: 1.2rem; margin-top: 1rem; font-size: .85rem; }
 @media (max-width: 850px) { .metrics, .provider-grid { grid-template-columns: repeat(2,1fr); } .flow { grid-template-columns: 1fr; } .arrow { transform: rotate(90deg); text-align: center; } }
 @media (max-width: 620px) { .shell { width: min(100% - 1rem,1080px); padding-top: .5rem; } .hero, .section-title, .evidence-card-header { flex-direction: column; } .hero-status { justify-items: start; } .grid.two, .metrics, .provider-grid, .evidence-grid { grid-template-columns: 1fr; } dd { text-align: left; } }
+
+/* Founder-approved cosmic visual system and accessible dual themes. */
+:root[data-theme="light"] {
+  color-scheme: light;
+  --bg: #f3f5ff;
+  --panel: #ffffff;
+  --panel-2: #e9edff;
+  --text: #161b37;
+  --muted: #4d5876;
+  --line: #cbd3ee;
+  --accent: #5942ce;
+  --accent-2: #087e69;
+  --wash: rgba(89,66,206,.09);
+  --success-wash: rgba(8,126,105,.09);
+}
+:root[data-theme="dark"] { color-scheme: dark; }
+:root[data-theme="dark"] .hero {
+  background: radial-gradient(ellipse at 78% 5%,rgba(37,207,212,.15),transparent 55%), radial-gradient(ellipse at 15% 100%,rgba(129,66,255,.22),transparent 65%),linear-gradient(145deg,var(--panel),var(--panel-2));
+  box-shadow: 0 14px 55px rgba(12,9,45,.34), inset 0 1px 0 rgba(151,136,255,.13);
+}
+:root[data-theme="light"] body {
+  background: radial-gradient(circle at 10% 0%,rgba(108,85,255,.13),transparent 32rem),radial-gradient(circle at 90% 10%,rgba(26,182,164,.11),transparent 24rem),var(--bg);
+}
+:root[data-theme="light"] .metrics article { background: var(--panel); }
+:root[data-theme="light"] textarea,
+:root[data-theme="light"] pre,
+:root[data-theme="light"] .evidence-signature { background: #f6f7ff; color: var(--text); }
+:root[data-theme="light"] .status-badge.neutral,
+:root[data-theme="light"] .status-neutral { background: var(--wash); }
+.theme-toggle { display: inline-flex; align-items: center; justify-content: center; gap: .55rem; min-height: 44px; border: 1px solid var(--accent); background: var(--wash); font-weight: 650; white-space: nowrap; }
+.theme-toggle:hover { box-shadow: 0 0 0 3px var(--wash); }
+.theme-toggle:focus-visible { outline: 3px solid var(--accent); outline-offset: 3px; }
+@media (prefers-reduced-motion: reduce) { .panel { animation: none; } }
