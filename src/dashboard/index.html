@@ -1,10 +1,11 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="dark">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="description" content="SolContinuity application-layer continuity console for multi-provider applications" />
   <title>SolContinuity</title>
+  <script>try { const saved = localStorage.getItem("solcontinuity-theme"); document.documentElement.dataset.theme = saved === "light" || saved === "dark" ? saved : (matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark"); } catch { document.documentElement.dataset.theme = "dark"; }</script>
   <link rel="stylesheet" href="./styles.css" />
 </head>
 <body>
@@ -16,6 +17,7 @@
         <p class="lede">Detect provider concentration, test failure paths, and preserve evidence that an application can recover across independent routes. Solana is the first shipping adapter, not the product boundary.</p>
       </div>
       <div class="hero-status">
+        <button id="theme-toggle" class="theme-toggle" type="button" aria-label="Switch to light mode" aria-pressed="false"><span id="theme-icon" aria-hidden="true">☀</span><span id="theme-label">Light mode</span></button>
         <span class="status-badge">Open-source technical starter · v0.2</span>
         <span id="evidence-mode" class="status-badge neutral">Evidence mode: checking</span>
       </div>
@@ -124,6 +126,7 @@
 
     <p id="announcement" class="announcement" aria-live="polite"></p>
   </main>
+  <script src="./theme.js"></script>
   <script src="./app.js"></script>
   <script src="./tabs.js"></script>
 </body>
