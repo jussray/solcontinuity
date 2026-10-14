@@ -99,3 +99,45 @@ pre { overflow-x: auto; white-space: pre-wrap; overflow-wrap: anywhere; border: 
 .announcement { min-height: 1.2rem; margin-top: 1rem; font-size: .85rem; }
 @media (max-width: 850px) { .metrics, .provider-grid { grid-template-columns: repeat(2,1fr); } .flow { grid-template-columns: 1fr; } .arrow { transform: rotate(90deg); text-align: center; } }
 @media (max-width: 620px) { .shell { width: min(100% - 1rem,1080px); padding-top: .5rem; } .hero, .section-title, .evidence-card-header { flex-direction: column; } .hero-status { justify-items: start; } .grid.two, .metrics, .provider-grid, .evidence-grid { grid-template-columns: 1fr; } dd { text-align: left; } }
+
+/* Juss & Co. SolContinuity brand / color treatment (2026-10-14).
+ * Keep the real technical console, evidence boundaries and all interactions.
+ * Shared FCR family: midnight navy, electric blue/purple cosmic highlights.
+ * Sol signature: amethyst -> violet -> electric lilac ombre.
+ * Approved concept is a brand direction, not permission to fabricate metrics.
+ */
+:root{
+  --bg:#060b1e;--panel:#0b1230;--panel-2:#141c43;
+  --line:rgba(133,147,244,.36);
+  --accent:#b06aff;--accent-2:#73a9ff;
+  --wash:rgba(165,98,242,.15);
+}
+body{
+  background:
+    radial-gradient(ellipse at 86% 9%,rgba(169,63,239,.24),transparent 38rem),
+    radial-gradient(ellipse at 11% 65%,rgba(58,104,235,.23),transparent 43rem),
+    #060b1e;
+}
+.hero{
+  border-color:rgba(184,117,250,.51);
+  background:linear-gradient(135deg,rgba(26,20,66,.95),rgba(9,19,49,.96));
+  box-shadow:0 0 35px rgba(113,65,207,.12),inset 0 0 0 1px rgba(91,154,255,.1);
+}
+.hero h1{
+  background:linear-gradient(110deg,#f4eaff 4%,#ca86ff 47%,#7e6df7 83%,#92c6ff);
+  color:transparent;-webkit-background-clip:text;background-clip:text;
+}
+.eyebrow{color:#cea6ff}
+.status-badge,.pill{border-color:rgba(187,127,255,.52)}
+.metrics article,.card,.node,.provider-card,.evidence-card,.truth-note{
+  border-color:rgba(116,143,238,.35);
+}
+button[aria-selected="true"],#run-audit,#run-provider-score{
+  background:linear-gradient(115deg,#a65cfa,#785ef1 60%,#567fe2);
+  border-color:#ad78fa;
+}
+button:hover{border-color:#ca8bff}
+button:focus-visible,textarea:focus-visible,summary:focus-visible{
+  outline-color:#ca96ff;
+}
+@media(prefers-reduced-motion:reduce){.panel{animation:none}}
