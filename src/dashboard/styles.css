@@ -109,7 +109,7 @@ pre { overflow-x: auto; white-space: pre-wrap; overflow-wrap: anywhere; border: 
 :root{
   --bg:#060b1e;--panel:#0b1230;--panel-2:#141c43;
   --line:rgba(133,147,244,.36);
-  --accent:#b06aff;--accent-2:#73a9ff;
+  --accent:#b06aff;--accent-2:#42d6a4; /* semantic success stays green */
   --wash:rgba(165,98,242,.15);
 }
 body{
