@@ -220,10 +220,10 @@ Use `/lindy /confess` together — proven solutions + honest uncertainty. No sta
 
 ### Cross-Tool Relay Pattern
 ```
-1. Perplexity: Research the API/library → Save findings to file in repo
-2. Claude: Generate code based on findings → Commit to GitHub
+1. Perplexity (if available): Research the API/library; cite sources and save to a repository only when file access and scoped write authorization exist. Otherwise hand back findings in chat as NOT SAVED.
+2. Claude (if available): Build a patch; commit only with authorized repository access, reviewed scope, and verified branch/head. Otherwise return a proposed patch, NOT APPLIED.
 3. ChatGPT: Test with enabled tools; propose or commit changes only when scoped repository write access is authorized
-4. Perplexity: Verify final output works in browser
+4. Verification: Use an authorized independent browser/test capability where available, bound to the exact target; otherwise mark browser proof NOT RUN and retain the gate.
 5. Any: Ship — only after explicit action-specific approval, exact-state evidence and required review/verification gates; latest working code alone is not shipping authority
 6. Sync: use GitHub only with authorized repo access/writes; recheck branch and exact head before commit or pull
 ```
