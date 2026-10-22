@@ -16,3 +16,18 @@ body::before{content:"";position:absolute;z-index:-1;pointer-events:none;left:0;
 .btn-primary{box-shadow:0 0 25px rgba(106,89,255,.33)}
 @media(max-width:760px){.top{position:relative}.hero{min-height:0;padding:4rem 1rem 3rem}.hero::before{font-size:12rem;top:5%}.routing,.today,.limits,.run{border-radius:14px}}
 @media(prefers-reduced-transparency:reduce){.top{background:#070f27;backdrop-filter:none}.routing,.today,.limits,.run{background:#101832;backdrop-filter:none}}
+
+/* Respect an OS-level light preference; do not render light text on a light card
+   or dark scenery beneath light-theme variables by accident. */
+@media(prefers-color-scheme:light){
+  :root:not([data-theme="dark"]) body{background:radial-gradient(ellipse at 50% -8%,rgba(142,126,255,.15),transparent 45%),linear-gradient(#f4f7ff,#e9effc);color:var(--text)}
+  :root:not([data-theme="dark"]) body::before{opacity:.17}
+  :root:not([data-theme="dark"]) .top{background:rgba(250,252,255,.92)}
+  :root:not([data-theme="dark"]) .routing,
+  :root:not([data-theme="dark"]) .today,
+  :root:not([data-theme="dark"]) .limits,
+  :root:not([data-theme="dark"]) .run{background:rgba(255,255,255,.86);border-color:#c9cde3;backdrop-filter:none}
+  :root:not([data-theme="dark"]) .stage,
+  :root:not([data-theme="dark"]) .grid-list li,
+  :root:not([data-theme="dark"]) .state{background:#f9fbff;border-color:#c9cde3}
+}
