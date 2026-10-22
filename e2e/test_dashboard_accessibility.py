@@ -81,6 +81,16 @@ def run() -> None:
             page = browser.new_page(viewport={"width": 390, "height": 844})
             page.goto(base_url, wait_until="domcontentloaded")
 
+            # The approved dashboard skin must ship in the built, served Console.
+            # A pretty source file alone is not proof that end users receive it.
+            expect(page.locator('link[href="./cinematic-console.css"]')).to_have_count(1)
+            assert page.evaluate(
+                "() => [...document.styleSheets].some(sheet => sheet.href?.endsWith('/cinematic-console.css'))"
+            ), "Cinematic console stylesheet did not load"
+            assert page.locator(".tabs").evaluate(
+                "(element) => getComputedStyle(element).position"
+            ) == "static", "mobile navigation must remain in document flow"
+
             tablist = page.get_by_role("tablist", name="Dashboard sections")
             expect(tablist).to_be_visible()
             expect(tablist.get_by_role("tab")).to_have_count(6)
@@ -115,6 +125,11 @@ def run() -> None:
             page.set_viewport_size({"width": 320, "height": 800})
             assert page.evaluate("document.documentElement.scrollWidth <= document.documentElement.clientWidth") is True
 
+            page.set_viewport_size({"width": 1280, "height": 960})
+            assert page.locator(".tabs").evaluate(
+                "(element) => getComputedStyle(element).position"
+            ) == "sticky", "desktop navigation must remain visible while scrolling"
+            assert page.evaluate("document.documentElement.scrollWidth <= document.documentElement.clientWidth")
             page.set_viewport_size({"width": 390, "height": 844})
             artifact_dir = ROOT / "test-results"
             artifact_dir.mkdir(exist_ok=True)
