@@ -20,6 +20,16 @@ body::before{content:"";position:absolute;z-index:-1;pointer-events:none;left:0;
 /* Respect an OS-level light preference; do not render light text on a light card
    or dark scenery beneath light-theme variables by accident. */
 @media(prefers-color-scheme:light){
+  :root:not([data-theme="dark"]){
+    color-scheme:light;
+    --bg:#f5f6fb;--panel:#fff;--panel-2:#eef0fa;--line:#c9cde3;
+    --text:#12142a;--muted:#4a5070;--violet:#5a3fe0;--teal:#0c7a5a;
+    --magenta:#9a2fc4;--wash:rgba(90,63,224,.09);--action:#5a3fe0;
+  }
+  :root:not([data-theme="dark"]) .hero h1{
+    background:linear-gradient(105deg,#1e234c,#5940bc 52%,#0a7659);
+    -webkit-background-clip:text;background-clip:text;color:transparent;
+  }
   :root:not([data-theme="dark"]) body{background:radial-gradient(ellipse at 50% -8%,rgba(142,126,255,.15),transparent 45%),linear-gradient(#f4f7ff,#e9effc);color:var(--text)}
   :root:not([data-theme="dark"]) body::before{opacity:.17}
   :root:not([data-theme="dark"]) .top{background:rgba(250,252,255,.92)}
