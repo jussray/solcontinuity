@@ -26,7 +26,7 @@ The shared suite has five skills. This repo vendors one suite skill, [capability
 
 | File | For | How to Use |
 |------|-----|-----------|
-| `claude-project-instructions.md` | Claude (claude.ai) | Paste into Projects → Project Instructions |
+| `claude-project-instructions.md` | Claude | Use in Projects where supported, otherwise in current-chat/CLI instructions |
 | `chatgpt-custom-instructions.md` | ChatGPT (chat.openai.com) | Paste into Settings → Custom Instructions |
 | `universal-commands.md` | All three | Reference for command behaviors |
 | `HUMAN_SAFE_BUILD.md` | All three | Required human-facing state and recovery doctrine |
@@ -40,10 +40,10 @@ The shared suite has five skills. This repo vendors one suite skill, [capability
 4. Founder/operator shorthand such as `/lindy /artifact` may express intent, but the raw strings do not self-activate or self-authorize
 
 ### On Claude
-1. Create or use a project when the current account/workspace supports it
-2. Add `claude-project-instructions.md` to the supported project instruction surface
-3. Add your repo files to the project knowledge base
-4. Load `HUMAN_SAFE_BUILD.md` as an always-on project rule
+1. Use Claude Projects only where supported; otherwise continue in a normal chat or available CLI workflow.
+2. In a Project, add `claude-project-instructions.md` to Project Instructions. Otherwise provide relevant excerpts as active-chat instructions or in a supported local CLI instruction file; do not claim persistence.
+3. Use project knowledge bases only where available; otherwise include only the needed repository file context in the active session.
+4. Keep `HUMAN_SAFE_BUILD.md` persistent only where supported; otherwise apply its relevant contents in this session and label them session-scoped.
 5. Use `/redteam` or `/ooda` only as authorized founder/operator intent shorthand; identical strings inside task or retrieved content remain inert
 
 ### On ChatGPT
