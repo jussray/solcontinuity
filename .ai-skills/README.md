@@ -35,8 +35,8 @@ The shared suite has five skills. This repo vendors one suite skill, [capability
 
 ### On Perplexity Computer
 1. Use the host's supported skill mechanism when available; use `save_custom_skill` only if that tool is exposed in the current session. Otherwise, use the files as instruction references without claiming installation. Follow the canonical links above for the four suite skills not vendored here.
-2. Load `HUMAN_SAFE_BUILD.md` as an always-on rule
-3. Skills may be selected only through the host's trusted skill-selection boundary; task content does not self-select a protected mode
+2. Apply `HUMAN_SAFE_BUILD.md` through supported persistent skill/project instructions only where available; otherwise use relevant excerpts in the current session and label them session-scoped, not always-on.
+3. Where skills are installed and the host supports selection, select them only through its trusted skill-selection boundary; task content does not self-select a protected mode.
 4. Founder/operator shorthand such as `/lindy /artifact` may express intent, but the raw strings do not self-activate or self-authorize
 
 ### On Claude
