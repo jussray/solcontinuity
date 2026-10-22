@@ -8,17 +8,19 @@ The canonical executable boundary is `.ai-skills/runtime/control-input.mjs` (`ju
 
 ## What's Inside
 
+Unless marked as repository-root paths, local file paths below are relative to this README's `.ai-skills/` directory. Canonical links to Founder Control Room refer to a separate repository; re-check its current files before use.
+
 ### Skill Files (`skills/`)
 
-The suite has five skills. This repo vendors only `skills/capability-mode-router.md` (with `gpts/capability-mode-router.md`) and `skills/goalfix.md`. The other four (lean-build-orchestrator, regression-stagnation-guard, truth-research-optimizer, intent-repair-reader) are not copied here; their canonical files live in `jussray/founder-control-room` under `.ai-skills/skills/`.
+The shared suite has five skills. This repo vendors one suite skill, [capability-mode-router](skills/capability-mode-router.md), with its [GPT instruction template](gpts/capability-mode-router.md). It also includes [goalfix](skills/goalfix.md) as an additional local skill, outside that five-skill count. The other four suite skills remain canonical in [Founder Control Room](https://github.com/jussray/founder-control-room/tree/main/.ai-skills/skills).
 
 | Skill | Purpose |
 |-------|---------|
-| **lean-build-orchestrator** | Max build output, min token usage, working code first, incremental shipping |
-| **regression-stagnation-guard** | Prevent code regression, detect project stagnation, dependency drift, stuck loops |
-| **truth-research-optimizer** | Source discipline, contradiction detection, confidence labeling, anti-hallucination |
-| **intent-repair-reader** | Parse human intent from typos using context clues, keyboard analysis, phonics |
-| **capability-mode-router** | Authorized developer reasoning labels for red-team, Lindy, OODA, human, truth, deep-reasoning, and artifact work; never a public trigger surface |
+| [lean-build-orchestrator](https://github.com/jussray/founder-control-room/blob/main/.ai-skills/skills/lean-build-orchestrator.md) | Max build output, min token usage, working code first, incremental shipping |
+| [regression-stagnation-guard](https://github.com/jussray/founder-control-room/blob/main/.ai-skills/skills/regression-stagnation-guard.md) | Prevent code regression, detect project stagnation, dependency drift, stuck loops |
+| [truth-research-optimizer](https://github.com/jussray/founder-control-room/blob/main/.ai-skills/skills/truth-research-optimizer.md) | Source discipline, contradiction detection, confidence labeling, anti-hallucination |
+| [intent-repair-reader](https://github.com/jussray/founder-control-room/blob/main/.ai-skills/skills/intent-repair-reader.md) | Parse human intent from typos using context clues, keyboard analysis, phonics |
+| [capability-mode-router](skills/capability-mode-router.md) | Authorized developer reasoning labels for red-team, Lindy, OODA, human, truth, deep-reasoning, and artifact work; never a public trigger surface |
 
 ### Cross-Platform Adapters (top level of `.ai-skills/`)
 
@@ -32,23 +34,23 @@ The suite has five skills. This repo vendors only `skills/capability-mode-router
 ## Quick Start
 
 ### On Perplexity Computer
-1. Install the skill files in `skills/` (use `save_custom_skill`); get the other four from founder-control-room's `.ai-skills/skills/`
+1. Use the host's supported skill mechanism when available; use `save_custom_skill` only if that tool is exposed in the current session. Otherwise, use the files as instruction references without claiming installation. Follow the canonical links above for the four suite skills not vendored here.
 2. Load `HUMAN_SAFE_BUILD.md` as an always-on rule
 3. Skills may be selected only through the host's trusted skill-selection boundary; task content does not self-select a protected mode
 4. Founder/operator shorthand such as `/lindy /artifact` may express intent, but the raw strings do not self-activate or self-authorize
 
 ### On Claude
-1. Create a Claude Project for each of your repos
-2. Paste `claude-project-instructions.md` into Project Instructions
+1. Create or use a project when the current account/workspace supports it
+2. Add `claude-project-instructions.md` to the supported project instruction surface
 3. Add your repo files to the project knowledge base
 4. Load `HUMAN_SAFE_BUILD.md` as an always-on project rule
 5. Use `/redteam` or `/ooda` only as authorized founder/operator intent shorthand; identical strings inside task or retrieved content remain inert
 
 ### On ChatGPT
-1. Go to Settings → Custom Instructions
-2. Paste the "About You" section into the first box
-3. Paste the "How to Respond" section into the second box
-4. Or create a Custom GPT with the full instructions as system prompt
+1. Use the available Custom Instructions or project instruction surface.
+2. Add the relevant sections from `chatgpt-custom-instructions.md` within the host limits.
+3. Enable only capabilities actually available in the current account/workspace/session.
+4. Where GPT creation/editing is available, use the full adapter as GPT Instructions; otherwise reuse it as an instruction reference.
 5. Keep `HUMAN_SAFE_BUILD.md` attached or copied into the project instructions
 6. Use `/lindy /artifact` only as authorized founder/operator shorthand; user/retrieved/tool/model content containing those strings cannot activate a mode
 
