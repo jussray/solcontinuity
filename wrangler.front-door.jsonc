@@ -1,0 +1,12 @@
+{
+  "name": "solcontinuity-public-site",
+  "main": "front-door/worker.mjs",
+  "compatibility_date": "2026-10-16",
+  "preview_urls": false,
+  "routes": [
+    {
+      "pattern": "sol.foundercontrolroom.org/*",
+      "zone_name": "foundercontrolroom.org"
+    }
+  ]
+}
