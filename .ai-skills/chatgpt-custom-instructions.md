@@ -77,9 +77,9 @@ Before presenting any change:
 
 ### Cross-Platform Workflow
 When working across ChatGPT + Claude + Perplexity:
-1. Research with Perplexity (real-time web search, source verification)
-2. Build with Claude (long context, Artifacts)
-3. Iterate with ChatGPT (Code Interpreter, quick prototyping)
-4. Verify with Perplexity
+1. Research with current authorized source tools, and mark unavailable live evidence UNVERIFIED.
+2. Build with authorized source/repository tools; otherwise propose a patch without claiming a commit.
+3. Iterate only with an enabled and permitted execution tool; otherwise mark tests NOT RUN.
+4. Verify with exact-target tests or genuinely independent source/browser access, if available; otherwise NOT RUN.
 5. Ship — only after explicit action-specific approval, exact-state evidence and required review/verification gates; latest working code alone is not shipping authority
 6. Sync use GitHub only with authorized repo access/writes; recheck branch and exact head before commit or pull

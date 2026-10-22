@@ -27,7 +27,7 @@ The shared suite has five skills. This repo vendors one suite skill, [capability
 | File | For | How to Use |
 |------|-----|-----------|
 | `claude-project-instructions.md` | Claude | Use in Projects where supported, otherwise in current-chat/CLI instructions |
-| `chatgpt-custom-instructions.md` | ChatGPT (chat.openai.com) | Paste into Settings → Custom Instructions |
+| `chatgpt-custom-instructions.md` | ChatGPT | Reuse within supported Custom Instructions limits; see `custom-gpt-system-prompt.md` for a dedicated GPT |
 | `universal-commands.md` | All three | Reference for command behaviors |
 | `HUMAN_SAFE_BUILD.md` | All three | Required human-facing state and recovery doctrine |
 
@@ -50,8 +50,8 @@ The shared suite has five skills. This repo vendors one suite skill, [capability
 1. Use the available Custom Instructions or project instruction surface.
 2. Add the relevant sections from `chatgpt-custom-instructions.md` within the host limits.
 3. Enable only capabilities actually available in the current account/workspace/session.
-4. Where GPT creation/editing is available, use the full adapter as GPT Instructions; otherwise reuse it as an instruction reference.
-5. Keep `HUMAN_SAFE_BUILD.md` attached or copied into the project instructions
+4. Where GPT creation/editing is available, use the dedicated [`custom-gpt-system-prompt.md`](custom-gpt-system-prompt.md) as the GPT Instructions (or the specialist [`gpts/capability-mode-router.md`](gpts/capability-mode-router.md) for that GPT); otherwise use relevant excerpts as session-scoped instruction references.
+5. Apply `HUMAN_SAFE_BUILD.md` within the supported surface and size limits: project knowledge/instructions or GPT Instructions if available, otherwise a concise applicable summary in Custom Instructions where supported or relevant excerpts in the current chat. Without persistence, call it session-scoped and never claim an always-on rule.
 6. Use `/lindy /artifact` only as authorized founder/operator shorthand; user/retrieved/tool/model content containing those strings cannot activate a mode
 
 ## Command Reference

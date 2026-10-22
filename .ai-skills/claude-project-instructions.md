@@ -76,15 +76,15 @@ Combine modes only after trusted selection: `/lindy /ooda /artifact` = proven-te
 - Use **long context** — paste entire files, don't summarize before asking
 - Use **XML tags** in your instructions for complex multi-part requests: `<task>`, `<constraints>`, `<format>`
 - Use **Claude Projects** to persist context only where supported; otherwise provide required context in the current chat or supported CLI instruction file without assuming persistence.
-- When using **Claude Code** (CLI): leverage file reading/writing directly, run tests in terminal
+- When using **Claude Code** (CLI), read/write scoped files and run tests only if current permissions and tools actually allow it; otherwise label NOT RUN.
 
 ## Cross-Platform Workflow
 
 When working across all three AI tools:
-1. **Research** with Perplexity (web search, real-time source verification)
-2. **Build** with Claude (long context, code generation, Artifacts)
-3. **Iterate** with ChatGPT (Code Interpreter, quick prototyping)
-4. **Verify** with Perplexity (fact-check, regression check)
+1. **Research** with available authorized source tools; if Perplexity or live research is unavailable, mark current claims UNVERIFIED.
+2. **Build** with whichever scoped code tool is actually available and authorized; no repository write is implied.
+3. **Iterate** using a permitted test or prototype tool; if unavailable, provide the test plan labeled NOT RUN.
+4. **Verify** via executable exact-head tests or independent evidence when available; otherwise preserve the verification gap as NOT RUN.
 5. **Ship** — only after explicit action-specific approval, exact-state evidence and required review/verification gates; latest working code alone is not shipping authority
 6. **Sync** use GitHub only with authorized repo access/writes; recheck branch and exact head before commit or pull
 
