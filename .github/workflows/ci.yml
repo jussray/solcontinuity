@@ -18,7 +18,7 @@ jobs:
     timeout-minutes: 15
     steps:
       - name: Check out exact head
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           ref: ${{ env.EXPECTED_HEAD_SHA }}
           persist-credentials: false
@@ -28,10 +28,10 @@ jobs:
           actual="$(git rev-parse HEAD)"
           printf 'expected=%s\nactual=%s\n' "$EXPECTED_HEAD_SHA" "$actual"
           test "$actual" = "$EXPECTED_HEAD_SHA"
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v6
         with:
           node-version: 24
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
           cache: pip
@@ -117,7 +117,7 @@ jobs:
           set -euo pipefail
           shim_dir="$RUNNER_TEMP/python3-only-path"
           PATH="$shim_dir:$PATH" PYTHON_BIN=python3 npm run verify
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v6
         if: always()
         with:
           name: verification-evidence-${{ env.EXPECTED_HEAD_SHA }}

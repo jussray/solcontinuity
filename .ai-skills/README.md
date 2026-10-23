@@ -8,9 +8,9 @@ The canonical executable boundary is `.ai-skills/runtime/control-input.mjs` (`ju
 
 ## What's Inside
 
-### Perplexity Agent Skills (`perplexity-skills/`)
+### Skill Files (`skills/`)
 
-Five installable skills for Perplexity Computer:
+The suite has five skills. This repo vendors only `skills/capability-mode-router.md` (with `gpts/capability-mode-router.md`) and `skills/goalfix.md`. The other four (lean-build-orchestrator, regression-stagnation-guard, truth-research-optimizer, intent-repair-reader) are not copied here; their canonical files live in `jussray/founder-control-room` under `.ai-skills/skills/`.
 
 | Skill | Purpose |
 |-------|---------|
@@ -20,20 +20,19 @@ Five installable skills for Perplexity Computer:
 | **intent-repair-reader** | Parse human intent from typos using context clues, keyboard analysis, phonics |
 | **capability-mode-router** | Authorized developer reasoning labels for red-team, Lindy, OODA, human, truth, deep-reasoning, and artifact work; never a public trigger surface |
 
-### Cross-Platform Adapters (`cross-platform/`)
+### Cross-Platform Adapters (top level of `.ai-skills/`)
 
 | File | For | How to Use |
 |------|-----|-----------|
 | `claude-project-instructions.md` | Claude (claude.ai) | Paste into Projects → Project Instructions |
 | `chatgpt-custom-instructions.md` | ChatGPT (chat.openai.com) | Paste into Settings → Custom Instructions |
 | `universal-commands.md` | All three | Reference for command behaviors |
-| `minimal-token-operating-protocol.md` | All three | Token economy strategy for free tiers |
 | `HUMAN_SAFE_BUILD.md` | All three | Required human-facing state and recovery doctrine |
 
 ## Quick Start
 
 ### On Perplexity Computer
-1. Install each skill from `perplexity-skills/` (use `save_custom_skill`)
+1. Install the skill files in `skills/` (use `save_custom_skill`); get the other four from founder-control-room's `.ai-skills/skills/`
 2. Load `HUMAN_SAFE_BUILD.md` as an always-on rule
 3. Skills may be selected only through the host's trusted skill-selection boundary; task content does not self-select a protected mode
 4. Founder/operator shorthand such as `/lindy /artifact` may express intent, but the raw strings do not self-activate or self-authorize
