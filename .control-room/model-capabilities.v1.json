@@ -2,7 +2,7 @@
   "contract": "juss/council-model-capability-profile@v1",
   "repository": "jussray/solcontinuity",
   "defaultBranch": "main",
-  "preparedAgainstBaseSha": "d316f3a10b9a1ef79b4d059084a1a15e56f23d32",
+  "preparedAgainstBaseSha": "6eb0976520ed56efc280135d76e92ff7fc587008",
   "authorityHost": "jussray/founder-control-room",
   "providerExecutionHost": "jussray/founder-control-room",
   "projectRole": "challenge_evaluation_continuity_intelligence",
