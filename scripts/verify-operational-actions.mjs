@@ -83,6 +83,17 @@ async function exercise() {
     const session = cookieFrom(login, "sc_session");
     cookiePolicy("session-cookie", session.entry);
 
+    // Two actual login requests must mint distinct sessions.
+    const secondLogin = await fetch(auth.base + "/api/session/login", {
+      method: "POST", headers: { "content-type": "application/json", cookie: device.pair },
+      body: JSON.stringify({ token: "local-only-action-proof" })
+    });
+    prove("independent-session-login", secondLogin.status === 204);
+    const independentSession = cookieFrom(secondLogin, "sc_session");
+    cookiePolicy("independent-session-cookie", independentSession.entry);
+    prove("independent-session-token-distinct", independentSession.pair !== session.pair);
+    const independentJar = device.pair + "; " + independentSession.pair;
+
     const jar = device.pair + "; " + session.pair;
     const authenticated = await fetch(auth.base + "/api/overview", { headers: { cookie: jar } });
     const overview = await authenticated.json();
@@ -102,6 +113,11 @@ async function exercise() {
     prove("logout-rejects-replayed-session", replay.status === 401);
     const siblingReplay = await fetch(sibling.base + "/api/overview", { headers: { cookie: jar } });
     prove("shared-store-sibling-rejects-replayed-session", siblingReplay.status === 401);
+    // Logging out session A must not invalidate distinct session B.
+    const survivingSession = await fetch(auth.base + "/api/overview", { headers: { cookie: independentJar } });
+    prove("unrelated-session-survives-logout", survivingSession.status === 200);
+    const survivingSibling = await fetch(sibling.base + "/api/overview", { headers: { cookie: independentJar } });
+    prove("unrelated-session-survives-shared-store-logout", survivingSibling.status === 200);
   } finally {
     await Promise.all([closeServer(auth.server), closeServer(sibling.server)]);
   }
