@@ -100,6 +100,10 @@ async function exercise() {
     prove("protected-action-succeeded", authenticated.status === 200 && overview.project === "SolContinuity");
     const siblingBeforeLogout = await fetch(sibling.base + "/api/overview", { headers: { cookie: jar } });
     prove("shared-store-sibling-authorizes-active-session", siblingBeforeLogout.status === 200);
+    const independentBeforeLogout = await fetch(auth.base + "/api/overview", { headers: { cookie: independentJar } });
+    prove("independent-session-authorized-before-logout", independentBeforeLogout.status === 200);
+    const siblingIndependentBeforeLogout = await fetch(sibling.base + "/api/overview", { headers: { cookie: independentJar } });
+    prove("independent-session-authorized-on-sibling-before-logout", siblingIndependentBeforeLogout.status === 200);
 
     const logout = await fetch(auth.base + "/api/session/logout", { method: "POST", headers: { cookie: jar } });
     prove("real-http-logout", logout.status === 204);
