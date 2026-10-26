@@ -65,6 +65,9 @@ async function exercise() {
   let c = null;
   let failed = null;
   try {
+    const healthy = await fetch(a.base + "/api/health");
+    const healthyStatus = await healthy.json();
+    prove("redis-backed-health-ready", healthy.status === 200 && healthyStatus.status === "ok" && healthyStatus.sessionStoreReady === true);
     const sessionA = await issueSession(a.base);
     const sessionB = await issueSession(b.base);
     prove("independent-cookie-values", sessionA !== sessionB);
@@ -97,6 +100,9 @@ async function exercise() {
     // An unavailable Redis must not produce success on login or on authenticated actions.
     const unreachable = new RedisSessionRevocationStore({ url: "redis://127.0.0.1:1", timeoutMs: 300 });
     failed = await start(unreachable);
+    const degraded = await fetch(failed.base + "/api/health");
+    const degradedData = await degraded.json();
+    prove("storage-outage-health-degraded", degraded.status === 503 && degradedData.status === "degraded" && degradedData.sessionStoreReady === false);
     const deniedLogin = await fetch(failed.base + "/api/session/login", {
       method: "POST", headers: { "content-type": "application/json" },
       body: JSON.stringify({ token: consoleToken })
