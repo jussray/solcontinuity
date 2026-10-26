@@ -109,7 +109,10 @@ async function exercise() {
     prove("fingerprint-second-action", again.status === 200);
     const rejected = await fetch(limited.base + "/api/health", { headers: { cookie: device.pair } });
     const body = await rejected.json();
-    prove("fingerprint-rate-limit-enforced", rejected.status === 429 && body.error === "RATE_LIMITED" && Boolean(rejected.headers.get("retry-after")));
+    prove("stable-signed-device-rate-limit-enforced", rejected.status === 429 && body.error === "RATE_LIMITED" && Boolean(rejected.headers.get("retry-after")));
+    const forged = await fetch(limited.base + "/api/health", { headers: { cookie: "sc_device=forged.signature" } });
+    const replacement = cookieFrom(forged, "sc_device");
+    prove("forged-device-cookie-replaced", forged.status === 200 && replacement.pair !== "sc_device=forged.signature");
   } finally {
     await closeServer(limited.server);
   }
