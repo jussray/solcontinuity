@@ -71,6 +71,38 @@ PORT=4173 node node_modules/solcontinuity/dist/src/api/server.js
 
 Evidence paths are resolved relative to the installed package when the packaged server is used. Do not place private keys or unredacted secrets in evidence files.
 
+## Session and abuse-control deployment boundaries
+
+When `SOLCONTINUITY_CONSOLE_TOKEN` is set, sessions use signed `sc_session` cookies.
+With the default factory setup, logout revocation is **process-local**. Restarts and
+separate instances do not share that revocation state. Do not represent the
+default as multi-instance session security.
+
+For a load-balanced deployment, start the application programmatically with
+a shared, durable `SessionRevocationStore` implementation injected into
+`createSolContinuityServer({ sessionRevocationStore, requireSharedSessionRevocation: true })`.
+The store must accept only SHA-256 cookie digests and their expiry timestamps;
+it must return consistent revocation state to all application instances,
+prune expired records, protect access to its backing storage, and fail closed
+on read/write outages. A common signed-cookie secret is also required across
+instances. **No managed shared-store adapter is bundled**. Turning on
+`SOLCONTINUITY_REQUIRE_SHARED_SESSIONS=1` without injecting a store intentionally
+prevents server startup. A successful in-process shared-object test does not
+prove Redis, database, persistence, inter-host consistency, or restart behavior.
+
+A separate process-local rate budget uses the trusted socket address, hashed
+with an ephemeral per-process salt, in addition to the per-device fingerprint.
+It continues throttling repeated requests when a caller discards a device
+cookie or supplies arbitrary `X-Forwarded-For` headers. It does not provide
+distributed protection, and clients behind a NAT can share the network budget.
+The `networkRateLimit` factory option may tune this tradeoff. Put authenticated
+and network-wide distributed throttling at a trusted reverse proxy or shared
+rate-limit store before claiming production-grade abuse resistance.
+
+Accept production readiness only after separately exercising real multi-instance
+logout, storage outage, restart, proxy IP canonicalization, legitimate NAT traffic,
+and a deployed HTTPS session lifecycle without recording session cookie values.
+
 ## Verification
 
 The repository command below packs the project, installs the tarball into a temporary unrelated project, imports the SDK, runs a two-provider quorum request with a deterministic mock transport, starts the packaged server, loads the packaged manifest, and serves the packaged Console:
