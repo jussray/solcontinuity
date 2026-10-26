@@ -140,6 +140,7 @@ export function createSolContinuityServer(options: SolContinuityServerOptions = 
   }
   const sessionRevocationStore = options.sessionRevocationStore ?? new ProcessLocalSessionRevocationStore();
   const digestSession = (session: string): string => createHash("sha256").update(session).digest("hex");
+  const sessionStoreReadinessDigest = digestSession("solcontinuity:session-store-readiness");
 
   return createServer(async (request, response) => {
     const url = new URL(request.url ?? "/", `http://${request.headers.host ?? "127.0.0.1"}`);
@@ -188,7 +189,7 @@ export function createSolContinuityServer(options: SolContinuityServerOptions = 
         // A shared-store outage must not yield an apparently successful login.
         // Check storage before issuing any signed authorization cookie.
         if (requireSharedSessionRevocation || options.sessionRevocationStore) {
-          await sessionRevocationStore.isRevoked(digestSession("solcontinuity:session-store-readiness"));
+          await sessionRevocationStore.isRevoked(sessionStoreReadinessDigest);
         }
         json(response, 204, null, [...setCookies, createSessionCookie(cookieSecret, secureCookies)]);
         return;
@@ -213,9 +214,26 @@ export function createSolContinuityServer(options: SolContinuityServerOptions = 
       }
 
       if (request.method === "GET" && url.pathname === "/api/health") {
+        let sessionStoreReady: boolean | null = null;
+        if (requireSharedSessionRevocation || options.sessionRevocationStore) {
+          try {
+            await sessionRevocationStore.isRevoked(sessionStoreReadinessDigest);
+            sessionStoreReady = true;
+          } catch {
+            // Do not claim readiness when protected API actions cannot check revocations.
+            json(response, 503, {
+              service: "solcontinuity-api",
+              status: "degraded",
+              authRequired: Boolean(consoleToken),
+              sessionStoreReady: false
+            }, setCookies);
+            return;
+          }
+        }
         json(response, 200, {
           service: "solcontinuity-api",
           status: "ok",
+          sessionStoreReady,
           analyticsConfigured: Boolean(analyticsUrl),
           evidenceSources: evidencePaths.length,
           runtimeHeadBound: Boolean(expectedHeadSha),
