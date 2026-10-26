@@ -38,13 +38,17 @@ test("provider states never expose secret values", () => {
 test("Muse stays absent when the model is missing despite a configured key", () => {
   process.env.MODEL_API_KEY = "synthetic-muse-key";
   delete process.env.SOL_MUSE_MODEL;
-  assert.equal(solProviderStates().muse.state, "ABSENT");
+  const muse = solProviderStates().muse;
+  assert.ok(muse);
+  assert.equal(muse.state, "ABSENT");
 });
 
 test("Muse stays absent when the requested model is not allow-listed", () => {
   process.env.MODEL_API_KEY = "synthetic-muse-key";
   process.env.SOL_MUSE_MODEL = "unapproved-model";
-  assert.equal(solProviderStates().muse.state, "ABSENT");
+  const muse = solProviderStates().muse;
+  assert.ok(muse);
+  assert.equal(muse.state, "ABSENT");
 });
 
 test("OpenAI invocation returns bounded evidence with no authority", async () => {
