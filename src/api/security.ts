@@ -175,7 +175,7 @@ export class FingerprintRateLimiter {
 
 export function createSessionCookie(secret: string, secureCookies: boolean, now = Date.now()): string {
   const expiresAt = now + SESSION_MAX_AGE_SECONDS * 1000;
-  return serializeCookie(SESSION_COOKIE_NAME, signValue(secret, String(expiresAt)), {
+  return serializeCookie(SESSION_COOKIE_NAME, signValue(secret, `${expiresAt}:${randomBytes(16).toString("base64url")}`), {
     maxAgeSeconds: SESSION_MAX_AGE_SECONDS,
     sameSite: "Strict",
     httpOnly: true,
@@ -187,15 +187,19 @@ export function clearSessionCookie(secureCookies: boolean): string {
   return clearedCookie(SESSION_COOKIE_NAME, { sameSite: "Strict", secure: secureCookies });
 }
 
-export function hasValidSession(cookies: CookieJar, secret: string, now = Date.now()): boolean {
+/** Accepts nonce-bearing sessions and legacy signed expiry-only sessions until expiration. */
+export function getValidSessionExpiresAt(cookies: CookieJar, secret: string, now = Date.now()): number | null {
   const cookie = cookies[SESSION_COOKIE_NAME];
-  if (!cookie) {
-    return false;
-  }
+  if (!cookie) return null;
   const verified = verifySignedValue(secret, cookie);
-  if (!verified) {
-    return false;
-  }
-  const expiresAt = Number(verified);
-  return Number.isFinite(expiresAt) && expiresAt > now;
+  if (!verified) return null;
+  const fields = verified.split(":");
+  if (fields.length > 2 || !/^\d+$/.test(fields[0] ?? "")) return null;
+  if (fields.length === 2 && !/^[A-Za-z0-9_-]{22}$/.test(fields[1] ?? "")) return null;
+  const expiresAt = Number(fields[0]);
+  return Number.isSafeInteger(expiresAt) && expiresAt > now ? expiresAt : null;
+}
+
+export function hasValidSession(cookies: CookieJar, secret: string, now = Date.now()): boolean {
+  return getValidSessionExpiresAt(cookies, secret, now) !== null;
 }
