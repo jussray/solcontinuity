@@ -9,6 +9,8 @@ import { parseManifest } from "../core/manifest.js";
 import { loadEvidenceHistory } from "./evidence-history.js";
 import { invokeSolProvider, solProviderStates } from "./provider-runtime.js";
 import { ProcessLocalSessionRevocationStore, type SessionRevocationStore } from "./session-revocation.js";
+export { RedisSessionRevocationStore } from "./redis-session-revocation.js";
+export type { RedisSessionRevocationOptions } from "./redis-session-revocation.js";
 import {
   FingerprintRateLimiter,
   clearSessionCookie,
@@ -182,6 +184,11 @@ export function createSolContinuityServer(options: SolContinuityServerOptions = 
         if (typeof provided !== "string" || !timingSafeTokenEqual(provided, consoleToken)) {
           json(response, 401, { error: "INVALID_TOKEN" }, setCookies);
           return;
+        }
+        // A shared-store outage must not yield an apparently successful login.
+        // Check storage before issuing any signed authorization cookie.
+        if (requireSharedSessionRevocation || options.sessionRevocationStore) {
+          await sessionRevocationStore.isRevoked(digestSession("solcontinuity:session-store-readiness"));
         }
         json(response, 204, null, [...setCookies, createSessionCookie(cookieSecret, secureCookies)]);
         return;
