@@ -297,6 +297,10 @@ test("session auth is enforced once a console token is configured", async () => 
 
     const afterLogout = await fetch(`${baseUrl}/api/overview`, { headers: { cookie: loggedOutCookies } });
     assert.equal(afterLogout.status, 401);
+
+    // A captured pre-logout session must no longer authorize protected actions.
+    const replay = await fetch(`${baseUrl}/api/overview`, { headers: { cookie: sessionCookies } });
+    assert.equal(replay.status, 401);
   } finally {
     await new Promise<void>((resolve, reject) => server.close((error) => (error ? reject(error) : resolve())));
   }
