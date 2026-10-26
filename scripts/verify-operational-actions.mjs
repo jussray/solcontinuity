@@ -4,6 +4,7 @@ import { execFileSync } from "node:child_process";
 import { once } from "node:events";
 import { mkdir, writeFile } from "node:fs/promises";
 import { createSolContinuityServer } from "../dist/src/api/server.js";
+import { ProcessLocalSessionRevocationStore } from "../dist/src/api/session-revocation.js";
 
 const checks = [];
 const observedHead = execFileSync("git", ["rev-parse", "HEAD"], { encoding: "utf8" }).trim();
@@ -43,13 +44,18 @@ async function closeServer(server) {
 
 async function exercise() {
   prove("exact-head", Boolean(expectedHead) && observedHead === expectedHead);
-  const auth = await startServer({
+  const sharedRevocations = new ProcessLocalSessionRevocationStore();
+  const authOptions = {
     consoleToken: "local-only-action-proof",
     cookieSecret: "ephemeral-local-action-proof-key-not-production",
     secureCookies: true,
     expectedHeadSha: expectedHead,
-    rateLimit: { capacity: 40, refillPerSecond: 1 }
-  });
+    rateLimit: { capacity: 40, refillPerSecond: 1 },
+    sessionRevocationStore: sharedRevocations,
+    requireSharedSessionRevocation: true
+  };
+  const auth = await startServer(authOptions);
+  const sibling = await startServer(authOptions);
   try {
     const health = await fetch(auth.base + "/api/health");
     const healthData = await health.json();
@@ -81,6 +87,8 @@ async function exercise() {
     const authenticated = await fetch(auth.base + "/api/overview", { headers: { cookie: jar } });
     const overview = await authenticated.json();
     prove("protected-action-succeeded", authenticated.status === 200 && overview.project === "SolContinuity");
+    const siblingBeforeLogout = await fetch(sibling.base + "/api/overview", { headers: { cookie: jar } });
+    prove("shared-store-sibling-authorizes-active-session", siblingBeforeLogout.status === 200);
 
     const logout = await fetch(auth.base + "/api/session/logout", { method: "POST", headers: { cookie: jar } });
     prove("real-http-logout", logout.status === 204);
@@ -92,8 +100,10 @@ async function exercise() {
     // Exercise the original signed session, not only the browser-cleared replacement.
     const replay = await fetch(auth.base + "/api/overview", { headers: { cookie: jar } });
     prove("logout-rejects-replayed-session", replay.status === 401);
+    const siblingReplay = await fetch(sibling.base + "/api/overview", { headers: { cookie: jar } });
+    prove("shared-store-sibling-rejects-replayed-session", siblingReplay.status === 401);
   } finally {
-    await closeServer(auth.server);
+    await Promise.all([closeServer(auth.server), closeServer(sibling.server)]);
   }
 
   const limited = await startServer({
@@ -115,6 +125,24 @@ async function exercise() {
     prove("forged-device-cookie-replaced", forged.status === 200 && replacement.pair !== "sc_device=forged.signature");
   } finally {
     await closeServer(limited.server);
+  }
+
+  const networkBound = await startServer({
+    secureCookies: true,
+    cookieSecret: "ephemeral-network-budget-proof-key",
+    rateLimit: { capacity: 10, refillPerSecond: 0.0001 },
+    networkRateLimit: { capacity: 2, refillPerSecond: 0.0001 }
+  });
+  try {
+    const first = await fetch(networkBound.base + "/api/health");
+    prove("network-budget-first-fresh-cookie", first.status === 200);
+    const second = await fetch(networkBound.base + "/api/health", { headers: { "x-forwarded-for": "192.0.2.1" } });
+    prove("network-budget-second-fresh-cookie", second.status === 200);
+    const third = await fetch(networkBound.base + "/api/health", { headers: { "x-forwarded-for": "198.51.100.2" } });
+    const denied = await third.json();
+    prove("network-budget-survives-cookie-rotation-and-forwarded-ip", third.status === 429 && denied.error === "RATE_LIMITED");
+  } finally {
+    await closeServer(networkBound.server);
   }
 }
 
