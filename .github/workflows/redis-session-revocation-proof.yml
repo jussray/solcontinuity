@@ -1,0 +1,68 @@
+name: Redis Session Revocation Proof
+
+on:
+  pull_request:
+    branches: [main]
+  merge_group:
+    types: [checks_requested]
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  EXPECTED_HEAD_SHA: ${{ github.event.pull_request.head.sha || github.event.merge_group.head_sha || github.sha }}
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+  REDIS_TEST_URL: redis://127.0.0.1:6379
+
+concurrency:
+  group: redis-revocation-${{ github.event.pull_request.number || github.event.merge_group.head_sha || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  redis-revocation:
+    name: Live Redis HTTP actions, restart and storage outage
+    runs-on: ubuntu-22.04
+    timeout-minutes: 18
+    services:
+      redis:
+        image: redis:7.4-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 8
+    steps:
+      - name: Checkout exact submitted commit
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ env.EXPECTED_HEAD_SHA }}
+          persist-credentials: false
+      - name: Verify checkout fingerprint
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$EXPECTED_HEAD_SHA"
+      - name: Set up Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: '24'
+          cache: npm
+      - name: Install locked dependencies
+        run: npm ci --ignore-scripts --no-audit --no-fund
+      - name: Build actual application
+        run: npm run build
+      - name: Execute Redis-backed operational HTTP proof
+        run: node scripts/verify-redis-revocation.mjs
+      - name: Retain sanitized evidence even when operations fail
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: redis-session-proof-${{ env.EXPECTED_HEAD_SHA }}
+          path: artifacts/redis-revocation-actions.json
+          if-no-files-found: error
+          retention-days: 30
