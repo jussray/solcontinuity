@@ -120,8 +120,9 @@ export function resolveDeviceIdentity(cookies: CookieJar, secret: string, secure
 }
 
 /**
- * Combines the device cookie with network identity so clearing the cookie alone
- * (without also changing source IP) does not reset abuse-rate-limit state.
+ * Derives a per-device, per-network fingerprint while the signed cookie is stable.
+ * Deleting the cookie can rotate device identity and reset this process-local budget;
+ * this is not a shared, network-wide anti-evasion guarantee.
  */
 export function computeFingerprint(deviceId: string, remoteAddress: string, userAgent: string | undefined): string {
   return createHash("sha256")
