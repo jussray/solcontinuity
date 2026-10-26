@@ -22,8 +22,9 @@ test("local revocation store retains only digests through the expiration boundar
 });
 
 test("session store outage fails protected requests and logout closed, not 200/204", async () => {
+  let available = true;
   const store: SessionRevocationStore = {
-    async isRevoked() { throw new Error("STORE_UNAVAILABLE"); },
+    async isRevoked() { if (!available) throw new Error("STORE_UNAVAILABLE"); return false; },
     async revoke() { throw new Error("STORE_UNAVAILABLE"); }
   };
   const server = createSolContinuityServer({
@@ -47,6 +48,13 @@ test("session store outage fails protected requests and logout closed, not 200/2
     assert.equal(login.status, 204);
     const cookie = login.headers.getSetCookie().find((entry) => entry.startsWith("sc_session="))?.split(";")[0];
     assert.ok(cookie);
+    available = false;
+    const deniedLogin = await fetch(base + "/api/session/login", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ token: "local-test-console-token" })
+    });
+    assert.equal(deniedLogin.status, 500);
     const blocked = await fetch(base + "/api/overview", { headers: { cookie } });
     assert.equal(blocked.status, 500);
     const blockedBody = await blocked.json() as { error: string };
