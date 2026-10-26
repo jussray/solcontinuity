@@ -6,18 +6,21 @@ const originalFetch = globalThis.fetch;
 const originalOpenAI = process.env.OPENAI_API_KEY;
 const originalAnthropic = process.env.ANTHROPIC_API_KEY;
 const originalMuse = process.env.MODEL_API_KEY;
+const originalMuseModel = process.env.SOL_MUSE_MODEL;
 
 test.afterEach(() => {
   globalThis.fetch = originalFetch;
   if (originalOpenAI === undefined) delete process.env.OPENAI_API_KEY; else process.env.OPENAI_API_KEY = originalOpenAI;
   if (originalAnthropic === undefined) delete process.env.ANTHROPIC_API_KEY; else process.env.ANTHROPIC_API_KEY = originalAnthropic;
   if (originalMuse === undefined) delete process.env.MODEL_API_KEY; else process.env.MODEL_API_KEY = originalMuse;
+  if (originalMuseModel === undefined) delete process.env.SOL_MUSE_MODEL; else process.env.SOL_MUSE_MODEL = originalMuseModel;
 });
 
 test("provider states never expose secret values", () => {
   process.env.OPENAI_API_KEY = "openai-secret";
   process.env.ANTHROPIC_API_KEY = "anthropic-secret";
   process.env.MODEL_API_KEY = "muse-secret";
+  process.env.SOL_MUSE_MODEL = "muse-spark-1.3";
   const states = solProviderStates();
   const openai = states.openai;
   const anthropic = states.anthropic;
@@ -29,6 +32,19 @@ test("provider states never expose secret values", () => {
   assert.equal(anthropic.state, "INTEGRATED");
   assert.equal(muse.state, "INTEGRATED");
   assert.doesNotMatch(JSON.stringify(states), /secret/);
+});
+
+
+test("Muse stays absent when the model is missing despite a configured key", () => {
+  process.env.MODEL_API_KEY = "synthetic-muse-key";
+  delete process.env.SOL_MUSE_MODEL;
+  assert.equal(solProviderStates().muse.state, "ABSENT");
+});
+
+test("Muse stays absent when the requested model is not allow-listed", () => {
+  process.env.MODEL_API_KEY = "synthetic-muse-key";
+  process.env.SOL_MUSE_MODEL = "unapproved-model";
+  assert.equal(solProviderStates().muse.state, "ABSENT");
 });
 
 test("OpenAI invocation returns bounded evidence with no authority", async () => {
@@ -49,7 +65,7 @@ test("restricted provider context fails before network use", async () => {
     () => invokeSolProvider({provider: "muse", prompt: "private", sensitivity: "restricted"}, async () => {
       throw new Error("network should not run");
     }),
-    /RESTRICTED_CONTEXT/
+    /SENSITIVE_CONTEXT_NOT_AUTHORIZED/
   );
 });
 
