@@ -112,6 +112,11 @@ server.listen(4173, "127.0.0.1");
 
 The adapter intentionally does not silently activate from the environment; the
 self-hosting operator must inject it and select required shared revocation.
+When a shared store is configured, `GET /api/health` checks its availability:
+a failed Redis read returns HTTP 503 with `status: degraded` and
+`sessionStoreReady: false` instead of a misleading HTTP 200. A successful
+health read is one observation, not proof that future session operations or
+distributed consistency will remain healthy.
 The connection enforces TLS certificate verification for `rediss://` and
 allows plaintext `redis://` only to localhost/loopback. Secure Redis with
 access controls and credentials, isolate the network, use a non-evicting key
