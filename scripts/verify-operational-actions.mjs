@@ -88,7 +88,10 @@ async function exercise() {
     cookiePolicy("cleared-session-cookie", cleared.entry);
     prove("logout-expiration", /(?:^|;\s*)Max-Age=0(?:;|$)/i.test(cleared.entry));
     const afterLogout = await fetch(auth.base + "/api/overview", { headers: { cookie: device.pair + "; " + cleared.pair } });
-    prove("logout-revokes-client-session", afterLogout.status === 401);
+    prove("logout-clears-client-cookie", afterLogout.status === 401);
+    // Exercise the original signed session, not only the browser-cleared replacement.
+    const replay = await fetch(auth.base + "/api/overview", { headers: { cookie: jar } });
+    prove("logout-rejects-replayed-session", replay.status === 401);
   } finally {
     await closeServer(auth.server);
   }
