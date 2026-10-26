@@ -1,4 +1,4 @@
-import { randomBytes } from "node:crypto";
+import { createHash, randomBytes } from "node:crypto";
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 import { readFile, stat } from "node:fs/promises";
 import { extname, join, normalize, resolve } from "node:path";
@@ -13,6 +13,7 @@ import {
   clearSessionCookie,
   computeFingerprint,
   createSessionCookie,
+  getValidSessionExpiresAt,
   hasValidSession,
   parseCookies,
   resolveDeviceIdentity,
@@ -119,6 +120,14 @@ export function createSolContinuityServer(options: SolContinuityServerOptions = 
     options.rateLimit?.capacity ?? 60,
     options.rateLimit?.refillPerSecond ?? 1
   );
+  // Process-local revocation only. Multi-instance deployments require a shared session store.
+  const revokedSessionDigests = new Map<string, number>();
+  const digestSession = (session: string): string => createHash("sha256").update(session).digest("hex");
+  const pruneExpiredRevocations = (now: number): void => {
+    for (const [digest, expiresAt] of revokedSessionDigests) {
+      if (expiresAt <= now) revokedSessionDigests.delete(digest);
+    }
+  };
 
   return createServer(async (request, response) => {
     const url = new URL(request.url ?? "/", `http://${request.headers.host ?? "127.0.0.1"}`);
@@ -165,12 +174,18 @@ export function createSolContinuityServer(options: SolContinuityServerOptions = 
       }
 
       if (request.method === "POST" && url.pathname === "/api/session/logout") {
+        const expiresAt = getValidSessionExpiresAt(cookies, cookieSecret);
+        if (expiresAt !== null && cookies.sc_session) {
+          pruneExpiredRevocations(Date.now());
+          revokedSessionDigests.set(digestSession(cookies.sc_session), expiresAt);
+        }
         json(response, 204, null, [...setCookies, clearSessionCookie(secureCookies)]);
         return;
       }
 
       if (consoleToken && url.pathname.startsWith("/api/") && !UNAUTHENTICATED_PATHS.has(url.pathname)) {
-        if (!hasValidSession(cookies, cookieSecret)) {
+        const replayed = Boolean(cookies.sc_session && revokedSessionDigests.has(digestSession(cookies.sc_session)));
+        if (!hasValidSession(cookies, cookieSecret) || replayed) {
           json(response, 401, { error: "AUTHENTICATION_REQUIRED" }, setCookies);
           return;
         }
