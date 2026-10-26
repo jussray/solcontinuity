@@ -49,6 +49,11 @@ test("session store outage fails protected requests and logout closed, not 200/2
     const cookie = login.headers.getSetCookie().find((entry) => entry.startsWith("sc_session="))?.split(";")[0];
     assert.ok(cookie);
     available = false;
+    const health = await fetch(base + "/api/health");
+    assert.equal(health.status, 503);
+    const healthData = await health.json() as { status: string; sessionStoreReady: boolean };
+    assert.equal(healthData.status, "degraded");
+    assert.equal(healthData.sessionStoreReady, false);
     const deniedLogin = await fetch(base + "/api/session/login", {
       method: "POST",
       headers: { "content-type": "application/json" },
