@@ -85,7 +85,48 @@ The store must accept only SHA-256 cookie digests and their expiry timestamps;
 it must return consistent revocation state to all application instances,
 prune expired records, protect access to its backing storage, and fail closed
 on read/write outages. A common signed-cookie secret is also required across
-instances. **No managed shared-store adapter is bundled**. Turning on
+instances.
+
+### Redis adapter (opt-in)
+
+The server now includes `RedisSessionRevocationStore` for real Redis 6.2+
+revocation keys. Pass the same Redis endpoint, key prefix, and cookie secret
+to every application instance:
+
+```js
+import { createSolContinuityServer, RedisSessionRevocationStore } from "solcontinuity/server";
+
+const sessionRevocationStore = new RedisSessionRevocationStore({
+  url: process.env.SOLCONTINUITY_REDIS_URL, // rediss:// for remote hosts
+  prefix: "solcontinuity:revoked:"
+});
+const server = createSolContinuityServer({
+  sessionRevocationStore,
+  requireSharedSessionRevocation: true,
+  consoleToken: process.env.SOLCONTINUITY_CONSOLE_TOKEN,
+  cookieSecret: process.env.SOLCONTINUITY_COOKIE_SECRET,
+  secureCookies: true
+});
+server.listen(4173, "127.0.0.1");
+```
+
+The adapter intentionally does not silently activate from the environment; the
+self-hosting operator must inject it and select required shared revocation.
+The connection enforces TLS certificate verification for `rediss://` and
+allows plaintext `redis://` only to localhost/loopback. Secure Redis with
+access controls and credentials, isolate the network, use a non-evicting key
+policy, reliable backups/persistence (AOF or equivalent) and monitored
+availability. All application and Redis hosts need synchronized clocks.
+Revocation values are opaque session SHA-256 digests with Redis-server
+absolute `PXAT` expiration. A lost/evicted key can incorrectly reactivate an
+unexpired cookie; do not claim durability without configuring and validating
+Redis persistence and operational backups.
+
+The Actions Redis proof starts an actual Redis container and exercises two HTTP
+listeners with distinct adapter instances, API server restart, key expiration,
+and fail-closed operations against an unreachable Redis address. It does **not**
+prove Redis restart durability, clustering, TLS/ACL production provisioning, or
+live Internet deployment. Validate those separately prior to production rollout. Turning on
 `SOLCONTINUITY_REQUIRE_SHARED_SESSIONS=1` without injecting a store intentionally
 prevents server startup. A successful in-process shared-object test does not
 prove Redis, database, persistence, inter-host consistency, or restart behavior.
