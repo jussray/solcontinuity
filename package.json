@@ -46,7 +46,7 @@
     "test:e2e": "npm run build && node scripts/run-python.mjs e2e/test_dashboard.py && node scripts/run-python.mjs e2e/test_dashboard_accessibility.py",
     "test:consumer": "node scripts/external-consumer-smoke.mjs",
     "test:ai-routing": "node --test .ai-skills/runtime/*.test.mjs",
-    "test": "npm run test:node && npm run test:runner && npm run test:python && npm run test:ai-routing",
+    "test": "npm run test:node && npm run test:runner && npm run test:python && npm run test:ai-routing && node --test tests/front-door.test.mjs",
     "start": "npm run build && node dist/src/api/server.js",
     "start:github-app": "npm run build && node dist/src/github-app/server.js",
     "start:analytics": "node scripts/run-python.mjs -m uvicorn python.solcontinuity_analytics.app:app --host 127.0.0.1 --port 8001",
@@ -59,7 +59,7 @@
   "dependencies": {},
   "devDependencies": {
     "@solana/web3.js": "1.98.4",
-    "@types/node": "22.15.30",
+    "@types/node": "26.6.5",
     "typescript": "5.8.3"
   }
 }
