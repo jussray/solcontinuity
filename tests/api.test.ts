@@ -285,6 +285,17 @@ test("session auth is enforced once a console token is configured", async () => 
     const sessionCookies = login.headers.getSetCookie().map((entry) => entry.split(";")[0]).join("; ");
     assert.ok(sessionCookies.includes("sc_session="));
 
+    const otherLogin = await fetch(`${baseUrl}/api/session/login`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ token: "correct-token" })
+    });
+    assert.equal(otherLogin.status, 204);
+    const otherSession = otherLogin.headers.getSetCookie().find((entry) => entry.startsWith("sc_session="))?.split(";")[0];
+    assert.ok(otherSession);
+    const initialSession = sessionCookies.split("; ").find((entry) => entry.startsWith("sc_session="));
+    assert.notEqual(otherSession, initialSession);
+
     const authenticated = await fetch(`${baseUrl}/api/overview`, { headers: { cookie: sessionCookies } });
     assert.equal(authenticated.status, 200);
 
@@ -297,6 +308,13 @@ test("session auth is enforced once a console token is configured", async () => 
 
     const afterLogout = await fetch(`${baseUrl}/api/overview`, { headers: { cookie: loggedOutCookies } });
     assert.equal(afterLogout.status, 401);
+
+    // A captured pre-logout session must no longer authorize protected actions.
+    const replay = await fetch(`${baseUrl}/api/overview`, { headers: { cookie: sessionCookies } });
+    assert.equal(replay.status, 401);
+
+    const unaffected = await fetch(`${baseUrl}/api/overview`, { headers: { cookie: otherSession } });
+    assert.equal(unaffected.status, 200);
   } finally {
     await new Promise<void>((resolve, reject) => server.close((error) => (error ? reject(error) : resolve())));
   }

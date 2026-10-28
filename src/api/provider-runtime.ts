@@ -1,5 +1,6 @@
 const MAX_RESPONSE_BYTES = 64 * 1024;
 const TIMEOUT_MS = 60_000;
+const SAFE_MUSE_MODEL = /^muse-spark-1\.(?:1|2|3)$/;
 
 type ProviderName = "openai" | "anthropic" | "muse";
 
@@ -11,10 +12,16 @@ const PROVIDERS = {
 
 function configFor(provider: ProviderName) {
   const config = PROVIDERS[provider];
+  const configuredModel = String(process.env[config.model] ?? "").trim();
+  // Muse (FCR semantics): no default fallback — the model must be explicitly
+  // configured AND allow-listed, otherwise the provider is not configured.
+  const modelName = provider === "muse"
+    ? (SAFE_MUSE_MODEL.test(configuredModel) ? configuredModel : "")
+    : (configuredModel || config.defaultModel);
   return {
     ...config,
-    keyValue: String(process.env[config.key] ?? "").trim(),
-    modelName: String(process.env[config.model] ?? "").trim() || config.defaultModel
+    keyValue: provider === "muse" && !modelName ? "" : String(process.env[config.key] ?? "").trim(),
+    modelName
   };
 }
 
@@ -59,8 +66,12 @@ export async function invokeSolProvider(input: unknown, fetchImpl: typeof fetch 
   if (!(provider in PROVIDERS)) throw new Error("UNSUPPORTED_PROVIDER");
   const prompt = String(record.prompt ?? "").trim();
   if (!prompt || prompt.length > 24_000) throw new Error("INVALID_PROMPT");
-  if (String(record.sensitivity ?? "standard").trim().toLowerCase() === "restricted") {
-    throw new Error("RESTRICTED_CONTEXT");
+  if (String(record.sensitivity ?? "standard").trim().toLowerCase() !== "standard") {
+    throw new Error("SENSITIVE_CONTEXT_NOT_AUTHORIZED");
+  }
+  const source = String(record.source ?? "founder").trim().toLowerCase();
+  if (!["founder", "repository", "system"].includes(source)) {
+    throw new Error("USER_CONTENT_NOT_AUTHORIZED");
   }
   const config = configFor(provider);
   if (!config.keyValue) throw new Error(`${provider.toUpperCase()}_NOT_CONFIGURED`);

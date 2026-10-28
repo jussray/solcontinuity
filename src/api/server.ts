@@ -1,4 +1,4 @@
-import { randomBytes } from "node:crypto";
+import { createHash, randomBytes } from "node:crypto";
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 import { readFile, stat } from "node:fs/promises";
 import { extname, join, normalize, resolve } from "node:path";
@@ -8,11 +8,15 @@ import { ManifestValidationError } from "../core/errors.js";
 import { parseManifest } from "../core/manifest.js";
 import { loadEvidenceHistory } from "./evidence-history.js";
 import { invokeSolProvider, solProviderStates } from "./provider-runtime.js";
+import { ProcessLocalSessionRevocationStore, type SessionRevocationStore } from "./session-revocation.js";
+export { RedisSessionRevocationStore } from "./redis-session-revocation.js";
+export type { RedisSessionRevocationOptions } from "./redis-session-revocation.js";
 import {
   FingerprintRateLimiter,
   clearSessionCookie,
   computeFingerprint,
   createSessionCookie,
+  getValidSessionExpiresAt,
   hasValidSession,
   parseCookies,
   resolveDeviceIdentity,
@@ -29,6 +33,9 @@ export interface SolContinuityServerOptions {
   readonly cookieSecret?: string;
   readonly secureCookies?: boolean;
   readonly rateLimit?: { readonly capacity: number; readonly refillPerSecond: number };
+  readonly networkRateLimit?: { readonly capacity: number; readonly refillPerSecond: number };
+  readonly sessionRevocationStore?: SessionRevocationStore;
+  readonly requireSharedSessionRevocation?: boolean;
 }
 
 const UNAUTHENTICATED_PATHS = new Set(["/api/health", "/api/session/login", "/api/session/logout"]);
@@ -119,6 +126,21 @@ export function createSolContinuityServer(options: SolContinuityServerOptions = 
     options.rateLimit?.capacity ?? 60,
     options.rateLimit?.refillPerSecond ?? 1
   );
+  // Independent, process-local network budget survives device-cookie rotation.
+  // Use trusted socket IP only; never accept unvalidated forwarding headers.
+  const networkLimiter = new FingerprintRateLimiter(
+    options.networkRateLimit?.capacity ?? (options.rateLimit?.capacity ?? 60) * 4,
+    options.networkRateLimit?.refillPerSecond ?? (options.rateLimit?.refillPerSecond ?? 1) * 4
+  );
+  const networkSalt = randomBytes(32);
+  const requireSharedSessionRevocation = options.requireSharedSessionRevocation ??
+    process.env.SOLCONTINUITY_REQUIRE_SHARED_SESSIONS === "1";
+  if (requireSharedSessionRevocation && !options.sessionRevocationStore) {
+    throw new Error("SHARED_SESSION_REVOCATION_STORE_REQUIRED");
+  }
+  const sessionRevocationStore = options.sessionRevocationStore ?? new ProcessLocalSessionRevocationStore();
+  const digestSession = (session: string): string => createHash("sha256").update(session).digest("hex");
+  const sessionStoreReadinessDigest = digestSession("solcontinuity:session-store-readiness");
 
   return createServer(async (request, response) => {
     const url = new URL(request.url ?? "/", `http://${request.headers.host ?? "127.0.0.1"}`);
@@ -127,6 +149,8 @@ export function createSolContinuityServer(options: SolContinuityServerOptions = 
     const setCookies: string[] = identity.setCookie ? [identity.setCookie] : [];
     const remoteAddress = request.socket.remoteAddress ?? "unknown";
     const fingerprint = computeFingerprint(identity.deviceId, remoteAddress, request.headers["user-agent"]);
+    // Keep IP information out of in-memory limiter keys and receipts.
+    const networkFingerprint = createHash("sha256").update(networkSalt).update(remoteAddress).digest("hex");
 
     try {
       const isExpensive = request.method === "POST" && (
@@ -137,12 +161,14 @@ export function createSolContinuityServer(options: SolContinuityServerOptions = 
       const isLoginAttempt = request.method === "POST" && url.pathname === "/api/session/login";
       const requestCost = isLoginAttempt ? LOGIN_ATTEMPT_COST : isExpensive ? EXPENSIVE_REQUEST_COST : 1;
       const rateLimit = rateLimiter.consume(fingerprint, requestCost);
-      if (!rateLimit.allowed) {
-        response.setHeader("retry-after", String(rateLimit.retryAfterSeconds ?? 1));
+      const networkRateLimit = networkLimiter.consume(networkFingerprint, requestCost);
+      if (!rateLimit.allowed || !networkRateLimit.allowed) {
+        const retryAfterSeconds = Math.max(rateLimit.retryAfterSeconds ?? 1, networkRateLimit.retryAfterSeconds ?? 1);
+        response.setHeader("retry-after", String(retryAfterSeconds));
         json(response, 429, {
           error: "RATE_LIMITED",
           message: "Too many requests from this client.",
-          retryAfterSeconds: rateLimit.retryAfterSeconds
+          retryAfterSeconds
         }, setCookies);
         return;
       }
@@ -160,26 +186,54 @@ export function createSolContinuityServer(options: SolContinuityServerOptions = 
           json(response, 401, { error: "INVALID_TOKEN" }, setCookies);
           return;
         }
+        // A shared-store outage must not yield an apparently successful login.
+        // Check storage before issuing any signed authorization cookie.
+        if (requireSharedSessionRevocation || options.sessionRevocationStore) {
+          await sessionRevocationStore.isRevoked(sessionStoreReadinessDigest);
+        }
         json(response, 204, null, [...setCookies, createSessionCookie(cookieSecret, secureCookies)]);
         return;
       }
 
       if (request.method === "POST" && url.pathname === "/api/session/logout") {
+        const expiresAt = getValidSessionExpiresAt(cookies, cookieSecret);
+        if (expiresAt !== null && cookies.sc_session) {
+          await sessionRevocationStore.revoke(digestSession(cookies.sc_session), expiresAt);
+        }
         json(response, 204, null, [...setCookies, clearSessionCookie(secureCookies)]);
         return;
       }
 
       if (consoleToken && url.pathname.startsWith("/api/") && !UNAUTHENTICATED_PATHS.has(url.pathname)) {
-        if (!hasValidSession(cookies, cookieSecret)) {
+        const valid = hasValidSession(cookies, cookieSecret);
+        const replayed = valid && Boolean(cookies.sc_session && await sessionRevocationStore.isRevoked(digestSession(cookies.sc_session)));
+        if (!valid || replayed) {
           json(response, 401, { error: "AUTHENTICATION_REQUIRED" }, setCookies);
           return;
         }
       }
 
       if (request.method === "GET" && url.pathname === "/api/health") {
+        let sessionStoreReady: boolean | null = null;
+        if (requireSharedSessionRevocation || options.sessionRevocationStore) {
+          try {
+            await sessionRevocationStore.isRevoked(sessionStoreReadinessDigest);
+            sessionStoreReady = true;
+          } catch {
+            // Do not claim readiness when protected API actions cannot check revocations.
+            json(response, 503, {
+              service: "solcontinuity-api",
+              status: "degraded",
+              authRequired: Boolean(consoleToken),
+              sessionStoreReady: false
+            }, setCookies);
+            return;
+          }
+        }
         json(response, 200, {
           service: "solcontinuity-api",
           status: "ok",
+          sessionStoreReady,
           analyticsConfigured: Boolean(analyticsUrl),
           evidenceSources: evidencePaths.length,
           runtimeHeadBound: Boolean(expectedHeadSha),
