@@ -1,3 +1,17 @@
+export {
+  FCR_PROVIDER_CHANGE_EVENT_KIND,
+  assessProviderChangeContinuity,
+  fingerprintProviderChangeEvent,
+  validateProviderChangeEvent
+} from "./core/provider-change-continuity.js";
+export type {
+  ProviderChangeAvailability,
+  ProviderChangeCategory,
+  ProviderChangeContinuityAssessment,
+  ProviderChangeContinuityStatus,
+  ProviderChangeEvent,
+  ProviderChangeProvider
+} from "./core/provider-change-continuity.js";
 export { MultiRpcClient } from "./core/multi-rpc-client.js";
 export type {
   BroadcastTransactionOptions,
