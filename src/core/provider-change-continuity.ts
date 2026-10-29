@@ -42,7 +42,7 @@ export interface ProviderChangeEvent {
   event_fingerprint: string;
 }
 
-export type ProviderChangeContinuityStatus = "NEW" | "DUPLICATE" | "STALE" | "INVALID";
+export type ProviderChangeContinuityStatus = "NEW" | "DUPLICATE" | "STALE" | "INCOMPLETE" | "INVALID";
 
 export interface ProviderChangeContinuityAssessment {
   status: ProviderChangeContinuityStatus;
@@ -128,7 +128,10 @@ export function validateProviderChangeEvent(input: unknown): string[] {
   if (input.previous_state !== null && typeof input.previous_state !== "string") issues.push("PREVIOUS_STATE_INVALID");
   if (typeof input.new_state !== "string" || !input.new_state.trim()) issues.push("NEW_STATE_MISSING");
   if (!new Set(["COMPLETE", "PARTIAL", "FAILED"]).has(input.source_coverage as string)) issues.push("SOURCE_COVERAGE_INVALID");
-  if (!isRecord(input.project_impacts) || ["fcr", "chief", "solcontinuity", "promptos"].some((key) => typeof input.project_impacts?.[key] !== "string")) issues.push("PROJECT_IMPACTS_INVALID");
+  const impacts = input.project_impacts;
+  if (!isRecord(impacts) || ["fcr", "chief", "solcontinuity", "promptos"].some((key) => typeof impacts[key] !== "string")) {
+    issues.push("PROJECT_IMPACTS_INVALID");
+  }
   if (typeof input.safe_test !== "string" || !input.safe_test.trim()) issues.push("SAFE_TEST_MISSING");
   if (typeof input.event_fingerprint !== "string" || !HASH.test(input.event_fingerprint)) {
     issues.push("FINGERPRINT_INVALID");
@@ -189,6 +192,13 @@ export function assessProviderChangeContinuity(
   if (nowAt - observedAt > MAX_AGE_MS) {
     return {
       status: "STALE", fingerprint, reasons: ["OBSERVATION_OLDER_THAN_TWO_HOURS"],
+      evidence_only: true, execution_authorized: false,
+    };
+  }
+  if (input.source_coverage !== "COMPLETE") {
+    return {
+      status: "INCOMPLETE", fingerprint,
+      reasons: [input.source_coverage === "FAILED" ? "SOURCE_COVERAGE_FAILED" : "SOURCE_COVERAGE_PARTIAL"],
       evidence_only: true, execution_authorized: false,
     };
   }
