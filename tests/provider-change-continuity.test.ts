@@ -57,3 +57,10 @@ test("rejects non-official sources and altered fingerprints", () => {
   const official = event();
   assert.equal(assessProviderChangeContinuity({ ...official, event_fingerprint: "0".repeat(64) }, [], "2026-10-28T10:20:00Z").status, "INVALID");
 });
+
+test("does not promote incomplete source coverage to a new verified event", () => {
+  const receipt = event({ source_coverage: "PARTIAL" });
+  const result = assessProviderChangeContinuity(receipt, [], "2026-10-28T10:20:00Z");
+  assert.equal(result.status, "INCOMPLETE");
+  assert.deepEqual(result.reasons, ["SOURCE_COVERAGE_PARTIAL"]);
+});
