@@ -20,6 +20,7 @@ test("provider states never expose secret values", () => {
   process.env.OPENAI_API_KEY = "openai-secret";
   process.env.ANTHROPIC_API_KEY = "anthropic-secret";
   process.env.MODEL_API_KEY = "muse-secret";
+  // This provider must have an explicitly allowlisted model before it is integrated.
   process.env.SOL_MUSE_MODEL = "muse-spark-1.3";
   const states = solProviderStates();
   const openai = states.openai;
