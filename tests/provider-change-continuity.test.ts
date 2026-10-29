@@ -20,10 +20,16 @@ function event(overrides: Partial<ProviderChangeEvent> = {}): ProviderChangeEven
     evidence_urls: ["https://openai.com/news/product-releases/example"],
     published_at: "2026-10-28T10:00:00Z",
     observed_at: "2026-10-28T10:10:00Z",
+    effective_at: "2026-10-29T00:00:00Z",
+    previous_state: "Computer use unavailable on Free plan.",
+    new_state: "Computer use available on paid plans.",
+    source_coverage: "COMPLETE" as const,
+    project_impacts: { fcr: "Compare paid-plan capability.", chief: "Assess bounded coding use.", solcontinuity: "Validate event freshness.", promptos: "Run provider comparison prompt." },
+    safe_test: "Read the public plan page and compare its stated availability.",
   };
   const composed = { ...base, ...overrides };
-  const fingerprint = fingerprintProviderChangeEvent(composed);
-  return { ...composed, fingerprint };
+  const eventFingerprint = fingerprintProviderChangeEvent(composed);
+  return { ...composed, event_fingerprint: eventFingerprint };
 }
 
 test("accepts a fresh, official, correctly fingerprinted event as new evidence", () => {
@@ -33,7 +39,7 @@ test("accepts a fresh, official, correctly fingerprinted event as new evidence",
 
 test("recognizes the same event fingerprint as a duplicate", () => {
   const receipt = event();
-  const result = assessProviderChangeContinuity(receipt, [receipt.fingerprint], "2026-10-28T10:20:00Z");
+  const result = assessProviderChangeContinuity(receipt, [receipt.event_fingerprint], "2026-10-28T10:20:00Z");
   assert.equal(result.status, "DUPLICATE");
   assert.equal(result.execution_authorized, false);
 });
@@ -47,5 +53,7 @@ test("marks an event stale after two hours without calling it current", () => {
 
 test("rejects non-official sources and altered fingerprints", () => {
   const receipt = event({ source_url: "https://example.com/fake" });
-  assert.ok(assessProviderChangeContinuity(receipt, [], "2026-10-28T10:20:00Z").status === "INVALID");
+  assert.equal(assessProviderChangeContinuity(receipt, [], "2026-10-28T10:20:00Z").status, "INVALID");
+  const official = event();
+  assert.equal(assessProviderChangeContinuity({ ...official, event_fingerprint: "0".repeat(64) }, [], "2026-10-28T10:20:00Z").status, "INVALID");
 });
