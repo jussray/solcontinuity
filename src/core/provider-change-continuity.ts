@@ -32,8 +32,14 @@ export interface ProviderChangeEvent {
   source_url: string;
   evidence_urls: string[];
   published_at: string | null;
+  effective_at: string | null;
   observed_at: string;
-  fingerprint: string;
+  previous_state: string | null;
+  new_state: string;
+  source_coverage: "COMPLETE" | "PARTIAL" | "FAILED";
+  project_impacts: { fcr: string; chief: string; solcontinuity: string; promptos: string };
+  safe_test: string;
+  event_fingerprint: string;
 }
 
 export type ProviderChangeContinuityStatus = "NEW" | "DUPLICATE" | "STALE" | "INVALID";
@@ -85,7 +91,7 @@ function normalized(value: string): string {
 }
 
 export function fingerprintProviderChangeEvent(
-  event: Omit<ProviderChangeEvent, "fingerprint" | "version" | "kind" | "evidence_urls">,
+  event: Omit<ProviderChangeEvent, "event_fingerprint" | "version" | "kind" | "evidence_urls">,
 ): string {
   const canonical = {
     provider: event.provider,
@@ -118,7 +124,13 @@ export function validateProviderChangeEvent(input: unknown): string[] {
   }
   if (input.published_at !== null && !isIsoDate(input.published_at)) issues.push("PUBLISHED_AT_INVALID");
   if (!isIsoDate(input.observed_at)) issues.push("OBSERVED_AT_INVALID");
-  if (typeof input.fingerprint !== "string" || !HASH.test(input.fingerprint)) {
+  if (input.effective_at !== null && !isIsoDate(input.effective_at)) issues.push("EFFECTIVE_AT_INVALID");
+  if (input.previous_state !== null && typeof input.previous_state !== "string") issues.push("PREVIOUS_STATE_INVALID");
+  if (typeof input.new_state !== "string" || !input.new_state.trim()) issues.push("NEW_STATE_MISSING");
+  if (!new Set(["COMPLETE", "PARTIAL", "FAILED"]).has(input.source_coverage as string)) issues.push("SOURCE_COVERAGE_INVALID");
+  if (!isRecord(input.project_impacts) || ["fcr", "chief", "solcontinuity", "promptos"].some((key) => typeof input.project_impacts?.[key] !== "string")) issues.push("PROJECT_IMPACTS_INVALID");
+  if (typeof input.safe_test !== "string" || !input.safe_test.trim()) issues.push("SAFE_TEST_MISSING");
+  if (typeof input.event_fingerprint !== "string" || !HASH.test(input.event_fingerprint)) {
     issues.push("FINGERPRINT_INVALID");
   } else if (
     typeof input.category === "string"
@@ -128,6 +140,10 @@ export function validateProviderChangeEvent(input: unknown): string[] {
     && typeof input.availability === "string"
     && (input.published_at === null || typeof input.published_at === "string")
     && typeof input.observed_at === "string"
+    && typeof input.new_state === "string"
+    && (input.previous_state === null || typeof input.previous_state === "string")
+    && (input.effective_at === null || typeof input.effective_at === "string")
+    && (input.source_coverage === "COMPLETE" || input.source_coverage === "PARTIAL" || input.source_coverage === "FAILED")
     && CATEGORIES.has(input.category as ProviderChangeCategory)
     && AVAILABILITY.has(input.availability as ProviderChangeAvailability)
   ) {
@@ -140,8 +156,14 @@ export function validateProviderChangeEvent(input: unknown): string[] {
       source_url: input.source_url,
       published_at: input.published_at as string | null,
       observed_at: input.observed_at,
+      effective_at: input.effective_at as string | null,
+      previous_state: input.previous_state as string | null,
+      new_state: input.new_state,
+      source_coverage: input.source_coverage as "COMPLETE" | "PARTIAL" | "FAILED",
+      project_impacts: input.project_impacts as ProviderChangeEvent["project_impacts"],
+      safe_test: input.safe_test as string,
     });
-    if (input.fingerprint !== expected) issues.push("FINGERPRINT_MISMATCH");
+    if (input.event_fingerprint !== expected) issues.push("FINGERPRINT_MISMATCH");
   }
   return issues;
 }
@@ -155,7 +177,7 @@ export function assessProviderChangeContinuity(
   if (reasons.length > 0 || !isRecord(input)) {
     return { status: "INVALID", fingerprint: null, reasons, evidence_only: true, execution_authorized: false };
   }
-  const fingerprint = input.fingerprint as string;
+  const fingerprint = input.event_fingerprint as string;
   const observedAt = Date.parse(input.observed_at as string);
   const nowAt = Date.parse(now);
   if (!Number.isFinite(nowAt) || observedAt > nowAt) {
