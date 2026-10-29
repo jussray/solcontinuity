@@ -8,7 +8,7 @@ import {
 } from "../src/core/provider-change-continuity.js";
 
 function event(overrides: Partial<ProviderChangeEvent> = {}): ProviderChangeEvent {
-  const base = {
+  const base: Omit<ProviderChangeEvent, "event_fingerprint"> = {
     version: 1 as const,
     kind: FCR_PROVIDER_CHANGE_EVENT_KIND,
     provider: "openai" as const,
