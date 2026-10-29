@@ -112,6 +112,12 @@ test("session cookie round-trips through hasValidSession and expires", () => {
   assert.equal(hasValidSession({}, "cookie-secret", now), false);
 });
 
+test("separate logins get distinct signed cookies even within the same millisecond", () => {
+  const first = createSessionCookie("cookie-secret", true, 4_000_000);
+  const second = createSessionCookie("cookie-secret", true, 4_000_000);
+  assert.notEqual(first, second);
+});
+
 test("clearSessionCookie expires immediately", () => {
   const cookie = clearSessionCookie(false);
   assert.match(cookie, /Max-Age=0/);
