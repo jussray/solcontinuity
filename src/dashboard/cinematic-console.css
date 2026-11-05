@@ -1,0 +1,28 @@
+/* Real SOL Console visual upgrade. All metrics and evidence remain driven by
+   existing app.js; no synthetic readings, transactions, or verification claims. */
+:root{--bg:#030816;--panel:rgba(8,20,46,.8);--panel-2:rgba(15,33,67,.74);--text:#f3f8ff;--muted:#aec8e7;--line:rgba(80,133,255,.37);--accent:#9880ff;--accent-2:#4ce5d4;--wash:rgba(116,95,245,.16);--success-wash:rgba(47,226,191,.11)}
+body{background:radial-gradient(ellipse at 54% -10%,rgba(108,53,230,.42),transparent 47%),radial-gradient(ellipse at 98% 26%,rgba(22,78,209,.26),transparent 45%),#030816}
+.shell{width:min(100% - 2rem,1510px);display:grid;grid-template-columns:minmax(190px,225px) minmax(0,1fr);gap:clamp(12px,1.5vw,22px);padding-top:1rem}
+.hero{grid-column:1/-1;position:relative;isolation:isolate;overflow:hidden;min-height:300px;align-items:center;border-color:rgba(116,130,255,.5);background:radial-gradient(circle at 75% 18%,rgba(154,85,255,.37),transparent 36%),linear-gradient(110deg,rgba(8,16,45,.97),rgba(8,25,57,.58) 65%,rgba(3,9,27,.92));box-shadow:inset 0 0 54px rgba(67,87,215,.18),0 18px 57px rgba(0,0,0,.28)}
+.hero::before{content:"∞";position:absolute;z-index:-1;right:8%;top:-10%;font-size:clamp(160px,24vw,400px);line-height:1;font-family:Georgia,serif;font-weight:800;background:linear-gradient(120deg,rgba(162,101,255,.26),rgba(58,236,215,.47),rgba(119,91,247,.26));-webkit-background-clip:text;background-clip:text;color:transparent;filter:drop-shadow(0 0 24px rgba(92,103,255,.5));pointer-events:none}
+.hero h1{font-weight:900;letter-spacing:-.05em;font-size:clamp(3rem,6.7vw,6rem);background:linear-gradient(125deg,#fff 4%,#acbbff 48%,#57e9ea 77%,#e2beff);-webkit-background-clip:text;background-clip:text;color:transparent}
+.eyebrow{color:#b7b7ff;letter-spacing:.19em}
+.hero-status{z-index:1}.status-badge{background:rgba(5,17,46,.68);border-color:rgba(73,228,208,.38);backdrop-filter:blur(12px)}
+.metrics{grid-column:2;margin:0;align-self:start}
+.metrics article,.card,.node,.callout,output,.provider-card,.evidence-card,.evidence-empty,.truth-note,.proof-list{background:linear-gradient(145deg,rgba(12,26,56,.75),rgba(7,16,39,.7));border-color:rgba(91,145,255,.38);box-shadow:inset 0 1px rgba(205,224,255,.05),0 12px 36px rgba(0,0,0,.19);backdrop-filter:blur(16px)}
+.metrics strong{color:#f7faff}.metrics span{color:#8dece8}
+.tabs{grid-column:1;grid-row:2 / span 4;align-self:start;position:sticky;top:1rem;display:grid;align-content:start;gap:.55rem;margin:0;padding:1rem;border:1px solid rgba(88,139,255,.34);border-radius:18px;background:linear-gradient(145deg,rgba(7,18,45,.88),rgba(4,13,30,.9));box-shadow:0 16px 43px rgba(0,0,0,.24)}
+.tabs button{text-align:left;background:transparent;border-color:transparent;color:#c4d1ff;min-height:43px;padding:.75rem .85rem}
+.tabs button[aria-selected="true"]{background:linear-gradient(120deg,rgba(107,72,251,.31),rgba(21,135,204,.29));border-color:rgba(144,118,255,.88);box-shadow:0 0 22px rgba(92,96,251,.18);color:white}
+.panel,.announcement{grid-column:2;min-width:0}.panel{padding:1.2rem;border:1px solid rgba(91,137,255,.29);border-radius:18px;background:rgba(5,13,34,.5);backdrop-filter:blur(15px)}
+.panel.hidden{display:none}
+.section-title h2{font-size:clamp(1.25rem,2vw,1.8rem)}
+button{border-color:rgba(93,145,255,.36);background:rgba(11,25,56,.82)}
+button:hover{border-color:#7cb7ff}
+button[aria-selected="true"],#run-audit,#run-provider-score{background:linear-gradient(125deg,#7557ee,#357cce);border-color:#9c8bff}
+textarea{background:rgba(3,10,28,.74);border-color:rgba(107,136,237,.51)}
+.truth-note{border-color:rgba(64,229,198,.35)}
+@media(max-width:900px){.shell{grid-template-columns:1fr}.hero,.metrics,.tabs,.panel,.announcement{grid-column:1}.tabs{grid-row:auto;position:static;display:flex;flex-wrap:nowrap;overflow-x:auto;padding:.5rem}.tabs button{flex:0 0 auto;white-space:nowrap}.metrics{grid-row:auto}}
+@media(max-width:620px){.hero{min-height:0}.hero::before{right:-10%;font-size:180px;opacity:.4}.hero h1{font-size:clamp(2.6rem,11vw,4rem)}.tabs{border-radius:12px}.panel{padding:.8rem}.shell{width:min(100% - 1rem,1510px)}}
+@media(prefers-reduced-transparency:reduce){.status-badge,.metrics article,.tabs,.panel,.card,.node,.callout,.provider-card,.evidence-card,.truth-note{background:#0e1b39;backdrop-filter:none}}
+@media(prefers-reduced-motion:reduce){.panel{animation:none}}

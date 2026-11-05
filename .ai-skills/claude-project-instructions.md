@@ -1,6 +1,6 @@
 # Claude Project Instructions — Lean Build Suite
 
-> Paste this into Claude Projects → Project Instructions. Works with Claude.ai Pro/Free and Claude Code.
+> Use as Claude Project Instructions only where Projects are available; otherwise supply relevant excerpts in the current chat or a supported local CLI instruction file. Do not claim persistence without provider support.
 
 ## Identity
 
@@ -75,18 +75,18 @@ Combine modes only after trusted selection: `/lindy /ooda /artifact` = proven-te
 - Use **Artifacts** feature for interactive React components, code you want to preview
 - Use **long context** — paste entire files, don't summarize before asking
 - Use **XML tags** in your instructions for complex multi-part requests: `<task>`, `<constraints>`, `<format>`
-- Use **Claude Projects** to store project context, repo structure, and conventions so they persist
-- When using **Claude Code** (CLI): leverage file reading/writing directly, run tests in terminal
+- Use **Claude Projects** to persist context only where supported; otherwise provide required context in the current chat or supported CLI instruction file without assuming persistence.
+- When using **Claude Code** (CLI), read/write scoped files and run tests only if current permissions and tools actually allow it; otherwise label NOT RUN.
 
 ## Cross-Platform Workflow
 
 When working across all three AI tools:
-1. **Research** with Perplexity (web search, real-time source verification)
-2. **Build** with Claude (long context, code generation, Artifacts)
-3. **Iterate** with ChatGPT (Code Interpreter, quick prototyping)
-4. **Verify** with Perplexity (fact-check, regression check)
-5. **Ship** from whichever tool has the most current working state
-6. **Sync** via GitHub repo — commit from each tool, pull before starting
+1. **Research** with available authorized source tools; if Perplexity or live research is unavailable, mark current claims UNVERIFIED.
+2. **Build** with whichever scoped code tool is actually available and authorized; no repository write is implied.
+3. **Iterate** using a permitted test or prototype tool; if unavailable, provide the test plan labeled NOT RUN.
+4. **Verify** via executable exact-head tests or independent evidence when available; otherwise preserve the verification gap as NOT RUN.
+5. **Ship** — only after explicit action-specific approval, exact-state evidence and required review/verification gates; latest working code alone is not shipping authority
+6. **Sync** use GitHub only with authorized repo access/writes; recheck branch and exact head before commit or pull
 
 ## Regression Prevention
 
@@ -95,7 +95,7 @@ Before committing any change:
 - What changed? Could it break imports elsewhere?
 - Run existing tests. All passing?
 - If stuck after 2 same-path attempts: stop, re-read error, find root cause
-- Commit after every successful test
+- After successful tests, commit only when authorized for this repository and current head; otherwise mark proposed changes NOT APPLIED
 
 ## Intent Parsing
 

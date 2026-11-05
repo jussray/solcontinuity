@@ -1,0 +1,55 @@
+name: Redis AOF Server Restart Operational Proof
+
+on:
+  pull_request:
+    branches: [main]
+  merge_group:
+    types: [checks_requested]
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+  EXPECTED_HEAD_SHA: ${{ github.event.pull_request.head.sha || github.event.merge_group.head_sha || github.sha }}
+
+concurrency:
+  group: redis-aof-restart-${{ github.event.pull_request.number || github.event.merge_group.head_sha || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  real-redis-aof-restart:
+    name: Docker Redis AOF data survives Redis server replacement
+    runs-on: ubuntu-22.04
+    timeout-minutes: 16
+    steps:
+      - name: Checkout actual proof subject
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ env.EXPECTED_HEAD_SHA }}
+          persist-credentials: false
+      - name: Enforce exact commit
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$EXPECTED_HEAD_SHA"
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '24'
+          cache: npm
+      - name: Install locked dependencies
+        run: npm ci --ignore-scripts --no-audit --no-fund
+      - name: Build tested app
+        run: npm run build
+      - name: Exercise Redis AOF crash-safety boundary through container replacement
+        run: node scripts/verify-redis-aof-restart.mjs
+      - name: Preserve action receipt even after failure
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: redis-aof-restart-${{ env.EXPECTED_HEAD_SHA }}
+          path: artifacts/redis-aof-restart.json
+          if-no-files-found: error
+          retention-days: 30

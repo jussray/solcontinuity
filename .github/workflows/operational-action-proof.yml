@@ -1,0 +1,65 @@
+name: Operational Action Proof
+
+on:
+  pull_request:
+    branches: [main]
+  merge_group:
+    types: [checks_requested]
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  EXPECTED_HEAD_SHA: ${{ github.event.pull_request.head.sha || github.event.merge_group.head_sha || github.sha }}
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+concurrency:
+  group: operational-action-proof-${{ github.event.pull_request.number || github.event.merge_group.head_sha || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify-real-local-actions:
+    name: HTTP actions, cookies, fingerprint and exact-head receipt
+    runs-on: ubuntu-22.04
+    timeout-minutes: 15
+    steps:
+      - name: Check out exact proof subject
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ env.EXPECTED_HEAD_SHA }}
+          persist-credentials: false
+
+      - name: Reject stale or mismatched source
+        shell: bash
+        run: |
+          set -euo pipefail
+          actual="$(git rev-parse HEAD)"
+          test "$actual" = "$EXPECTED_HEAD_SHA"
+          printf 'verified_commit=%s\n' "$actual"
+
+      - name: Set up Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: '24'
+          cache: npm
+
+      - name: Install locked dependencies
+        run: npm ci --ignore-scripts --no-audit --no-fund
+
+      - name: Build the actual local API
+        run: npm run build
+
+      - name: Execute real HTTP actions and validate signed cookies and rate limits
+        run: node scripts/verify-operational-actions.mjs
+
+      - name: Retain exact-commit local action receipt even on failure
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: operational-action-proof-${{ env.EXPECTED_HEAD_SHA }}
+          path: artifacts/operational-actions.json
+          if-no-files-found: error
+          retention-days: 30

@@ -1,0 +1,43 @@
+/* Approved SOL visual language. Public homepage remains an honest static
+   guide, not a simulated or fabricated live provider telemetry console. */
+:root{--bg:#030817;--panel:rgba(11,20,45,.83);--panel-2:rgba(18,30,64,.78);--line:rgba(79,139,255,.4);--text:#f3f8ff;--muted:#b9c8eb;--violet:#9e78ff;--teal:#48efdd;--magenta:#bd68ff;--wash:rgba(107,90,255,.13);--action:#6544d9;color-scheme:dark}
+body{background:radial-gradient(ellipse at 50% -8%,rgba(107,49,223,.46),transparent 42%),radial-gradient(ellipse at 94% 35%,rgba(22,90,212,.2),transparent 40%),radial-gradient(ellipse at 8% 70%,rgba(16,226,216,.1),transparent 37%),linear-gradient(180deg,#060b24,#030715 70%,#01030b);color:var(--text)}
+body::before{content:"";position:absolute;z-index:-1;pointer-events:none;left:0;right:0;top:4rem;height:38rem;background:linear-gradient(146deg,transparent 30%,rgba(44,65,145,.62) 30.5% 54%,transparent 54.5%),linear-gradient(29deg,transparent 27%,rgba(27,46,109,.7) 27.5% 57%,transparent 57.5%),linear-gradient(180deg,transparent,rgba(4,12,36,.4));clip-path:polygon(0 100%,0 65%,13% 33%,26% 71%,38% 22%,49% 67%,67% 10%,78% 67%,91% 32%,100% 57%,100% 100%)}
+.top{position:sticky;top:0;z-index:15;backdrop-filter:blur(20px);background:rgba(3,8,26,.72);border-bottom:1px solid rgba(102,133,255,.24)}
+.brand{letter-spacing:.02em;text-shadow:0 0 20px rgba(100,92,255,.45)}
+.hero{position:relative;isolation:isolate;text-align:center;max-width:1100px;margin-inline:auto;min-height:28rem;padding:clamp(4rem,8vw,7rem) 1rem}
+.hero::before{content:"∞";position:absolute;z-index:-1;inset:12% 0 auto;font-family:var(--display);font-size:clamp(10rem,28vw,25rem);line-height:1;font-weight:800;letter-spacing:-.2em;background:linear-gradient(115deg,rgba(128,106,255,.12),rgba(54,246,220,.3),rgba(169,87,255,.14));background-clip:text;-webkit-background-clip:text;color:transparent;filter:drop-shadow(0 0 24px rgba(106,88,255,.35));pointer-events:none}
+.hero h1{background:linear-gradient(100deg,#fff,#b1c4ff 44%,#93f9eb 77%,#e6c2ff);-webkit-background-clip:text;background-clip:text;color:transparent;text-shadow:none}
+.lede{max-width:760px;margin-inline:auto}
+.hero .actions{justify-content:center}
+.routing,.today,.limits,.run{background:linear-gradient(120deg,rgba(10,18,45,.72),rgba(5,13,33,.68));border:1px solid rgba(102,136,255,.33);border-radius:19px;box-shadow:0 15px 45px rgba(0,0,0,.24),inset 0 1px rgba(213,231,255,.07);backdrop-filter:blur(12px)}
+.stage,.grid-list li,.state{background:rgba(9,18,45,.56);border-color:rgba(87,140,255,.28)}
+.stage-hub{box-shadow:0 0 32px rgba(111,85,255,.15)}
+.btn-primary{box-shadow:0 0 25px rgba(106,89,255,.33)}
+@media(max-width:760px){.top{position:relative}.hero{min-height:0;padding:4rem 1rem 3rem}.hero::before{font-size:12rem;top:5%}.routing,.today,.limits,.run{border-radius:14px}}
+@media(prefers-reduced-transparency:reduce){.top{background:#070f27;backdrop-filter:none}.routing,.today,.limits,.run{background:#101832;backdrop-filter:none}}
+
+/* Respect an OS-level light preference; do not render light text on a light card
+   or dark scenery beneath light-theme variables by accident. */
+@media(prefers-color-scheme:light){
+  :root:not([data-theme="dark"]){
+    color-scheme:light;
+    --bg:#f5f6fb;--panel:#fff;--panel-2:#eef0fa;--line:#c9cde3;
+    --text:#12142a;--muted:#4a5070;--violet:#5a3fe0;--teal:#0c7a5a;
+    --magenta:#9a2fc4;--wash:rgba(90,63,224,.09);--action:#5a3fe0;
+  }
+  :root:not([data-theme="dark"]) .hero h1{
+    background:linear-gradient(105deg,#1e234c,#5940bc 52%,#0a7659);
+    -webkit-background-clip:text;background-clip:text;color:transparent;
+  }
+  :root:not([data-theme="dark"]) body{background:radial-gradient(ellipse at 50% -8%,rgba(142,126,255,.15),transparent 45%),linear-gradient(#f4f7ff,#e9effc);color:var(--text)}
+  :root:not([data-theme="dark"]) body::before{opacity:.17}
+  :root:not([data-theme="dark"]) .top{background:rgba(250,252,255,.92)}
+  :root:not([data-theme="dark"]) .routing,
+  :root:not([data-theme="dark"]) .today,
+  :root:not([data-theme="dark"]) .limits,
+  :root:not([data-theme="dark"]) .run{background:rgba(255,255,255,.86);border-color:#c9cde3;backdrop-filter:none}
+  :root:not([data-theme="dark"]) .stage,
+  :root:not([data-theme="dark"]) .grid-list li,
+  :root:not([data-theme="dark"]) .state{background:#f9fbff;border-color:#c9cde3}
+}

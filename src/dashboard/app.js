@@ -12,6 +12,7 @@ const overviewEvidence = document.getElementById("overview-evidence");
 const evidenceSummary = document.getElementById("evidence-summary");
 const evidenceHistory = document.getElementById("evidence-history");
 const proofGateSummary = document.getElementById("proof-gate-summary");
+let sessionEpoch = 0;
 
 const proofGateElements = {
   strictTypeScript: [document.getElementById("strict-typescript-gate"), document.getElementById("strict-typescript-state")],
@@ -155,9 +156,12 @@ function canUseApi() {
 
 async function apiRequest(path, options) {
   if (!canUseApi()) throw new Error("API unavailable in static artifact mode.");
+  const requestedEpoch = sessionEpoch;
   const response = await fetch(path, options);
   const payload = await response.json();
+  if (requestedEpoch !== sessionEpoch) throw new Error("Session changed. Try again after signing in.");
   if (!response.ok) {
+    if (response.status === 401) document.dispatchEvent(new Event("sol-session-required"));
     const error = new Error(payload.message || payload.error || `HTTP ${response.status}`);
     error.payload = payload;
     throw error;
@@ -409,6 +413,13 @@ document.getElementById("refresh-evidence").addEventListener("click", async () =
   await Promise.all([refreshOverview(), loadEvidenceHistory()]);
 });
 document.getElementById("refresh-history").addEventListener("click", loadEvidenceHistory);
+document.addEventListener("sol-session-changed", () => {
+  sessionEpoch += 1;
+  auditOutput.textContent = "Ready to audit.";
+  providerOutput.textContent = "Ready to score provider evidence.";
+  applyProofGates();
+  void Promise.all([refreshOverview(), loadEvidenceHistory()]);
+});
 
 renderProviderSamples();
 resetManifest();

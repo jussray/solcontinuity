@@ -99,3 +99,7 @@ pre { overflow-x: auto; white-space: pre-wrap; overflow-wrap: anywhere; border: 
 .announcement { min-height: 1.2rem; margin-top: 1rem; font-size: .85rem; }
 @media (max-width: 850px) { .metrics, .provider-grid { grid-template-columns: repeat(2,1fr); } .flow { grid-template-columns: 1fr; } .arrow { transform: rotate(90deg); text-align: center; } }
 @media (max-width: 620px) { .shell { width: min(100% - 1rem,1080px); padding-top: .5rem; } .hero, .section-title, .evidence-card-header { flex-direction: column; } .hero-status { justify-items: start; } .grid.two, .metrics, .provider-grid, .evidence-grid { grid-template-columns: 1fr; } dd { text-align: left; } }
+/* Access controls share the existing Console surface; hidden is authoritative. */
+[hidden] { display: none !important; }
+#session-form { display: grid; gap: .75rem; max-width: 38rem; }
+#console-token { padding: .75rem; font: inherit; max-width: 100%; }
