@@ -319,6 +319,12 @@ createSolContinuityServer({
             sign_in()
             # Advance only this synthetic test server's clock past its actual
             # twelve-hour session expiry. The browser's signed cookie is untouched.
+            page.route("**/api/audit", hold_audit)
+            page.get_by_role("button", name="Run audit").click()
+            deadline = time.monotonic() + 5
+            while not held_responses and time.monotonic() < deadline:
+                page.wait_for_timeout(25)
+            assert held_responses, "Pre-expiry protected audit response was not observed"
             assert server_process.stdin is not None and server_process.stdout is not None
             server_process.stdin.write("expire-session\n")
             server_process.stdin.flush()
@@ -330,6 +336,11 @@ createSolContinuityServer({
             expect(page.locator("#api-status")).to_have_text("Unavailable")
             expect(page.locator("#proof-gate-summary")).to_contain_text("8 UNKNOWN")
             page.get_by_role("tab", name="Audit lab").click()
+            route, response = held_responses.pop()
+            route.fulfill(response=response)
+            expect(page.locator("#audit-output")).to_contain_text("Session changed")
+            expect(page.locator("#audit-output")).not_to_contain_text("solcontinuity-node-api")
+            page.unroute("**/api/audit", hold_audit)
             with page.expect_response(f"{base_url}/api/audit") as expired:
                 page.get_by_role("button", name="Run audit").click()
             assert expired.value.status == 401

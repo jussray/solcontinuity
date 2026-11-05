@@ -107,3 +107,26 @@ test('a stale initial access probe cannot override successful sign-in or sign-ou
     assert.equal(h.elements['session-logout'].hidden, signOut);
   }
 });
+test('server-discovered expiry clears rendered results and invalidates an older protected response', async () => {
+  const app = readFileSync(new URL('../src/dashboard/app.js', import.meta.url), 'utf8');
+  const request = app.slice(app.indexOf('async function apiRequest('), app.indexOf('function textElement('));
+  const cleanupStart = app.indexOf('function clearSessionResults(');
+  const listenerStart = app.indexOf('document.addEventListener("sol-session-changed"');
+  const sessionCode = app.slice(cleanupStart >= 0 ? cleanupStart : listenerStart, app.indexOf('\nrenderProviderSamples();'));
+  const listeners = new Map();
+  const document = { addEventListener: (type, fn) => listeners.set(type, fn), dispatchEvent: event => listeners.get(event.type)?.(event) };
+  let finish;
+  const pending = new Promise(resolve => { finish = resolve; });
+  const context = vm.createContext({ fetch: () => pending, canUseApi: () => true, document, Event,
+    auditOutput: { textContent: 'protected prior audit' }, providerOutput: { textContent: 'protected prior score' },
+    overviewEvidence: { textContent: 'protected overview' }, evidenceSummary: { textContent: 'protected evidence' },
+    evidenceHistory: { replaceChildren() {} }, applyProofGates() {}, refreshOverview: async () => {}, loadEvidenceHistory: async () => {} });
+  vm.runInContext(`let sessionEpoch = 0; ${request}; ${sessionCode}; globalThis.request = apiRequest;`, context);
+  const result = context.request('/api/audit');
+  document.dispatchEvent(new Event('sol-session-required'));
+  finish(response(200, { protectedResult: 'must not render' }));
+  await assert.rejects(result, /Session changed/);
+  assert.equal(context.auditOutput.textContent, 'Ready to audit.');
+  assert.equal(context.providerOutput.textContent, 'Ready to score provider evidence.');
+  assert.equal(context.overviewEvidence.textContent.includes('protected overview'), false);
+});

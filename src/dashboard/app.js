@@ -413,11 +413,20 @@ document.getElementById("refresh-evidence").addEventListener("click", async () =
   await Promise.all([refreshOverview(), loadEvidenceHistory()]);
 });
 document.getElementById("refresh-history").addEventListener("click", loadEvidenceHistory);
-document.addEventListener("sol-session-changed", () => {
+function clearSessionResults() {
   sessionEpoch += 1;
   auditOutput.textContent = "Ready to audit.";
   providerOutput.textContent = "Ready to score provider evidence.";
   applyProofGates();
+}
+document.addEventListener("sol-session-required", () => {
+  clearSessionResults();
+  overviewEvidence.textContent = "Sign in to load protected Console evidence.";
+  evidenceSummary.textContent = "Sign in to load protected evidence history.";
+  evidenceHistory.replaceChildren();
+});
+document.addEventListener("sol-session-changed", () => {
+  clearSessionResults();
   void Promise.all([refreshOverview(), loadEvidenceHistory()]);
 });
 
