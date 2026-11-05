@@ -260,6 +260,7 @@ function renderStaticEvidenceMode() {
 }
 
 async function loadEvidenceHistory() {
+  const requestEpoch = sessionEpoch;
   if (!canUseApi()) {
     renderStaticEvidenceMode();
     return;
@@ -289,6 +290,7 @@ async function loadEvidenceHistory() {
     }
     announcement.textContent = "Live evidence history refreshed.";
   } catch (error) {
+    if (requestEpoch !== sessionEpoch) return;
     evidenceSummary.textContent = `Evidence history unavailable: ${error instanceof Error ? error.message : String(error)}. No live-chain claim is being made.`;
     evidenceHistory.append(textElement("div", "evidence-empty", "The Console failed closed and preserved the truth boundary."));
     announcement.textContent = "Evidence history unavailable; no live claim was made.";
@@ -296,6 +298,7 @@ async function loadEvidenceHistory() {
 }
 
 async function refreshOverview() {
+  const requestEpoch = sessionEpoch;
   if (!canUseApi()) {
     apiStatus.textContent = "Offline";
     analyticsStatus.textContent = "Offline";
@@ -317,6 +320,7 @@ async function refreshOverview() {
     applyProofGates(payload.proofGates || {});
     announcement.textContent = "Backend evidence refreshed.";
   } catch (error) {
+    if (requestEpoch !== sessionEpoch) return;
     apiStatus.textContent = "Unavailable";
     analyticsStatus.textContent = "Unknown";
     evidenceMode.textContent = "Evidence mode: backend unavailable";
@@ -328,6 +332,7 @@ async function refreshOverview() {
 }
 
 async function runAudit() {
+  const requestEpoch = sessionEpoch;
   let manifest;
   try {
     manifest = JSON.parse(editor.value);
@@ -354,6 +359,7 @@ async function runAudit() {
     auditOutput.textContent = JSON.stringify(report, null, 2);
     announcement.textContent = `Audit complete. Score ${report.score}. Source ${report.source}.`;
   } catch (error) {
+    if (requestEpoch !== sessionEpoch) return;
     auditOutput.textContent = `BACKEND ERROR: ${error instanceof Error ? error.message : String(error)}`;
     announcement.textContent = "Audit backend failed; no offline result was substituted.";
   }
@@ -378,6 +384,7 @@ function renderProviderSamples() {
 }
 
 async function runProviderScore() {
+  const requestEpoch = sessionEpoch;
   if (!canUseApi()) {
     const report = localProviderScore(sampleProviders);
     providerOutput.textContent = JSON.stringify(report, null, 2);
@@ -395,6 +402,7 @@ async function runProviderScore() {
     providerOutput.textContent = JSON.stringify(report, null, 2);
     announcement.textContent = `Provider evidence scored ${report.score}. Source ${report.source}.`;
   } catch (error) {
+    if (requestEpoch !== sessionEpoch) return;
     providerOutput.textContent = `BACKEND ERROR: ${error instanceof Error ? error.message : String(error)}`;
     announcement.textContent = "Provider analytics failed; no offline score was substituted.";
   }
@@ -418,6 +426,10 @@ function clearSessionResults() {
   auditOutput.textContent = "Ready to audit.";
   providerOutput.textContent = "Ready to score provider evidence.";
   applyProofGates();
+  apiStatus.textContent = "Unavailable";
+  analyticsStatus.textContent = "Unknown";
+  evidenceMode.textContent = "Evidence mode: sign in required";
+  evidenceMode.classList.add("neutral");
 }
 document.addEventListener("sol-session-required", () => {
   clearSessionResults();

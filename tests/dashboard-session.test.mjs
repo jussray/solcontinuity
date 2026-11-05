@@ -118,6 +118,8 @@ test('server-discovered expiry clears rendered results and invalidates an older 
   let finish;
   const pending = new Promise(resolve => { finish = resolve; });
   const context = vm.createContext({ fetch: () => pending, canUseApi: () => true, document, Event,
+    apiStatus: { textContent: 'Connected' }, analyticsStatus: { textContent: 'Configured' },
+    evidenceMode: { textContent: 'Evidence mode: live proof loaded', classList: { add() {} } },
     auditOutput: { textContent: 'protected prior audit' }, providerOutput: { textContent: 'protected prior score' },
     overviewEvidence: { textContent: 'protected overview' }, evidenceSummary: { textContent: 'protected evidence' },
     evidenceHistory: { replaceChildren() {} }, applyProofGates() {}, refreshOverview: async () => {}, loadEvidenceHistory: async () => {} });
@@ -126,7 +128,29 @@ test('server-discovered expiry clears rendered results and invalidates an older 
   document.dispatchEvent(new Event('sol-session-required'));
   finish(response(200, { protectedResult: 'must not render' }));
   await assert.rejects(result, /Session changed/);
+  assert.equal(context.apiStatus.textContent, 'Unavailable');
+  assert.equal(context.analyticsStatus.textContent, 'Unknown');
+  assert.equal(context.evidenceMode.textContent, 'Evidence mode: sign in required');
   assert.equal(context.auditOutput.textContent, 'Ready to audit.');
   assert.equal(context.providerOutput.textContent, 'Ready to score provider evidence.');
   assert.equal(context.overviewEvidence.textContent.includes('protected overview'), false);
+});
+test('superseded overview and history failures cannot overwrite refreshed session state', async () => {
+  const app = readFileSync(new URL('../src/dashboard/app.js', import.meta.url), 'utf8');
+  const functions = app.slice(app.indexOf('async function loadEvidenceHistory()'), app.indexOf('async function runAudit()'));
+  for (const name of ['refreshOverview', 'loadEvidenceHistory']) {
+    let rejectOld;
+    const old = new Promise((_, reject) => { rejectOld = reject; });
+    let calls = 0;
+    const element = () => ({ textContent: '', classList: { add() {}, toggle() {} }, replaceChildren() {}, append() {} });
+    const context = vm.createContext({ canUseApi: () => true, apiRequest: () => ++calls === 1 ? old : Promise.resolve(name === 'refreshOverview' ? { analyticsConfigured: true, proofGates: {}, manifest: 'ok', audit: { score: 100 }, boundary: 'protected' } : { records: [] }), apiStatus: element(), analyticsStatus: element(), evidenceMode: element(), overviewEvidence: element(), evidenceSummary: element(), evidenceHistory: element(), announcement: element(), applyProofGates() {}, textElement: element, renderStaticEvidenceMode() {} });
+    vm.runInContext(`let sessionEpoch = 0; ${functions}; globalThis.run = ${name}; globalThis.nextSession = () => { sessionEpoch += 1; };`, context);
+    const stale = context.run();
+    context.nextSession();
+    await context.run();
+    rejectOld(new Error('old request failed'));
+    await stale;
+    if (name === 'refreshOverview') assert.equal(context.apiStatus.textContent, 'Connected');
+    else assert.match(context.evidenceSummary.textContent, /No readable evidence/);
+  }
 });
