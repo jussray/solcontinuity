@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+import select
 import socket
 import subprocess
 import sys
@@ -219,9 +220,146 @@ def run() -> None:
         stop_process(analytics_process)
 
 
+def run_protected_console() -> None:
+    """Exercise real signed server sessions without reading or editing cookies."""
+    api_port = free_port()
+    base_url = f"http://127.0.0.1:{api_port}"
+    server_script = """
+import { createSolContinuityServer } from './dist/src/api/server.js';
+const realNow = Date.now;
+let offset = 0;
+Date.now = () => realNow() + offset;
+process.stdin.setEncoding('utf8');
+process.stdin.on('data', command => {
+  if (command.trim() === 'expire-session') {
+    offset += 13 * 60 * 60 * 1000;
+    process.stdout.write('SESSION_TIME_ADVANCED\\n');
+  }
+});
+createSolContinuityServer({
+  consoleToken: 'synthetic-browser-test-only',
+  cookieSecret: 'synthetic-browser-cookie-secret-only',
+  rateLimit: { capacity: 1000, refillPerSecond: 1000 },
+  networkRateLimit: { capacity: 1000, refillPerSecond: 1000 }
+}).listen(Number(process.env.PORT), '127.0.0.1');
+"""
+    server_env = os.environ.copy()
+    server_env["PORT"] = str(api_port)
+    server_process = subprocess.Popen(
+        ["node", "--input-type=module", "-e", server_script],
+        cwd=ROOT, env=server_env, stdin=subprocess.PIPE,
+        stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True,
+    )
+    try:
+        wait_http(f"{base_url}/api/health", server_process)
+        with sync_playwright() as playwright:
+            launch_options: dict[str, object] = {
+                "headless": True,
+                "args": ["--no-sandbox", "--disable-dev-shm-usage"],
+            }
+            if Path("/usr/bin/chromium").exists():
+                launch_options["executable_path"] = "/usr/bin/chromium"
+            browser = playwright.chromium.launch(**launch_options)
+            page = browser.new_page(viewport={"width": 1280, "height": 960})
+            browser_errors: list[str] = []
+            page.on("pageerror", lambda error: browser_errors.append(str(error)))
+            page.goto(base_url, wait_until="domcontentloaded")
+            expect(page.locator("#session-form")).to_be_visible()
+            expect(page.locator("#api-status")).to_have_text("Unavailable")
+
+            page.locator("#console-token").fill("invalid-synthetic-token")
+            with page.expect_response(f"{base_url}/api/session/login") as invalid:
+                page.locator("#session-login").click()
+            assert invalid.value.status == 401
+            expect(page.locator("#session-status")).to_have_text("Access token was not accepted.")
+            expect(page.locator("#console-token")).to_have_value("")
+
+            def sign_in() -> None:
+                page.locator("#console-token").fill("synthetic-browser-test-only")
+                with page.expect_response(f"{base_url}/api/session/login") as authenticated:
+                    page.locator("#session-login").click()
+                assert authenticated.value.status == 204
+                expect(page.locator("#session-logout")).to_be_visible()
+                expect(page.locator("#api-status")).to_have_text("Connected")
+                expect(page.locator("#console-token")).to_have_value("")
+
+            sign_in()
+            page.get_by_role("tab", name="Audit lab").click()
+            original_manifest = page.locator("#manifest-editor").input_value()
+            page.get_by_role("button", name="Run audit").click()
+            expect(page.locator("#audit-output")).to_contain_text("solcontinuity-node-api")
+
+            # Hold a genuine successful protected response until after server logout.
+            # This proves late completion cannot restore data from the old session.
+            held_responses = []
+
+            def hold_audit(route) -> None:
+                response = route.fetch()
+                assert response.status == 200
+                held_responses.append((route, response))
+
+            page.route("**/api/audit", hold_audit)
+            page.get_by_role("button", name="Run audit").click()
+            deadline = time.monotonic() + 5
+            while not held_responses and time.monotonic() < deadline:
+                page.wait_for_timeout(25)
+            assert held_responses, "Protected audit response was not observed"
+            with page.expect_response(f"{base_url}/api/session/logout") as signed_out:
+                page.locator("#session-logout").click()
+            assert signed_out.value.status == 204
+            expect(page.locator("#session-form")).to_be_visible()
+            expect(page.locator("#api-status")).to_have_text("Unavailable")
+            route, response = held_responses.pop()
+            route.fulfill(response=response)
+            page.wait_for_timeout(200)  # Allow the held response to reach the stale-request handler.
+            expect(page.locator("#audit-output")).to_have_text("Ready to audit.")
+            expect(page.locator("#audit-output")).not_to_contain_text("solcontinuity-node-api")
+            expect(page.locator("#manifest-editor")).to_have_value(original_manifest)
+            page.unroute("**/api/audit", hold_audit)
+
+            sign_in()
+            # Advance only this synthetic test server's clock past its actual
+            # twelve-hour session expiry. The browser's signed cookie is untouched.
+            page.route("**/api/audit", hold_audit)
+            page.get_by_role("button", name="Run audit").click()
+            deadline = time.monotonic() + 5
+            while not held_responses and time.monotonic() < deadline:
+                page.wait_for_timeout(25)
+            assert held_responses, "Pre-expiry protected audit response was not observed"
+            assert server_process.stdin is not None and server_process.stdout is not None
+            server_process.stdin.write("expire-session\n")
+            server_process.stdin.flush()
+            ready, _, _ = select.select([server_process.stdout], [], [], 5)
+            assert ready and server_process.stdout.readline().strip() == "SESSION_TIME_ADVANCED"
+            page.get_by_role("tab", name="Overview", exact=True).click()
+            page.get_by_role("button", name="Refresh evidence", exact=True).click()
+            expect(page.locator("#session-form")).to_be_visible()
+            expect(page.locator("#api-status")).to_have_text("Unavailable")
+            expect(page.locator("#proof-gate-summary")).to_contain_text("8 UNKNOWN")
+            page.get_by_role("tab", name="Audit lab").click()
+            route, response = held_responses.pop()
+            route.fulfill(response=response)
+            page.wait_for_timeout(200)  # Allow the held response to reach the stale-request handler.
+            expect(page.locator("#audit-output")).to_have_text("Ready to audit.")
+            expect(page.locator("#audit-output")).not_to_contain_text("solcontinuity-node-api")
+            page.unroute("**/api/audit", hold_audit)
+            with page.expect_response(f"{base_url}/api/audit") as expired:
+                page.get_by_role("button", name="Run audit").click()
+            assert expired.value.status == 401
+            assert "AUTHENTICATION_REQUIRED" in expired.value.text()
+            expect(page.locator("#session-form")).to_be_visible()
+            expect(page.locator("#audit-output")).to_have_text("Ready to audit.")
+            expect(page.locator("#audit-output")).not_to_contain_text("offline-browser-model")
+            assert browser_errors == [], f"Protected Console browser errors: {browser_errors}"
+            browser.close()
+    finally:
+        stop_process(server_process)
+
+
 if __name__ == "__main__":
     try:
         run()
+        run_protected_console()
     except Exception as error:  # noqa: BLE001
         print(f"Playwright verification failed: {error}", file=sys.stderr)
         raise
