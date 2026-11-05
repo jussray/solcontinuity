@@ -311,7 +311,8 @@ createSolContinuityServer({
             expect(page.locator("#api-status")).to_have_text("Unavailable")
             route, response = held_responses.pop()
             route.fulfill(response=response)
-            expect(page.locator("#audit-output")).to_contain_text("Session changed")
+            page.wait_for_timeout(200)  # Allow the held response to reach the stale-request handler.
+            expect(page.locator("#audit-output")).to_have_text("Ready to audit.")
             expect(page.locator("#audit-output")).not_to_contain_text("solcontinuity-node-api")
             expect(page.locator("#manifest-editor")).to_have_value(original_manifest)
             page.unroute("**/api/audit", hold_audit)
@@ -338,7 +339,8 @@ createSolContinuityServer({
             page.get_by_role("tab", name="Audit lab").click()
             route, response = held_responses.pop()
             route.fulfill(response=response)
-            expect(page.locator("#audit-output")).to_contain_text("Session changed")
+            page.wait_for_timeout(200)  # Allow the held response to reach the stale-request handler.
+            expect(page.locator("#audit-output")).to_have_text("Ready to audit.")
             expect(page.locator("#audit-output")).not_to_contain_text("solcontinuity-node-api")
             page.unroute("**/api/audit", hold_audit)
             with page.expect_response(f"{base_url}/api/audit") as expired:
