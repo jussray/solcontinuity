@@ -346,7 +346,9 @@ createSolContinuityServer({
             with page.expect_response(f"{base_url}/api/audit") as expired:
                 page.get_by_role("button", name="Run audit").click()
             assert expired.value.status == 401
-            expect(page.locator("#audit-output")).to_contain_text("AUTHENTICATION_REQUIRED")
+            assert "AUTHENTICATION_REQUIRED" in expired.value.text()
+            expect(page.locator("#session-form")).to_be_visible()
+            expect(page.locator("#audit-output")).to_have_text("Ready to audit.")
             expect(page.locator("#audit-output")).not_to_contain_text("offline-browser-model")
             assert browser_errors == [], f"Protected Console browser errors: {browser_errors}"
             browser.close()
