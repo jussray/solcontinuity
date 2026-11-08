@@ -22,6 +22,18 @@
       </div>
     </header>
 
+    <section class="card" aria-labelledby="session-heading">
+      <h2 id="session-heading">Console access</h2>
+      <p id="session-status" role="status" aria-live="polite">Checking access protection.</p>
+      <form id="session-form" hidden>
+        <label for="console-token">Console access token</label>
+        <p id="session-help">Use the token configured by this Console's operator. It is sent only to this server and is not saved in browser storage.</p>
+        <input id="console-token" name="token" type="password" autocomplete="off" required aria-describedby="session-help" />
+        <button id="session-login" type="submit">Sign in</button>
+      </form>
+      <button id="session-logout" class="secondary" type="button" hidden>Sign out</button>
+    </section>
+
     <section class="metrics" aria-label="Technical status">
       <article><span>Core</span><strong>Multi-route JSON-RPC</strong><small>Provider-aware quorum</small></article>
       <article><span>API</span><strong id="api-status">Checking</strong><small>Node evidence boundary</small></article>
@@ -125,6 +137,7 @@
 
     <p id="announcement" class="announcement" aria-live="polite"></p>
   </main>
+  <script src="./session.js"></script>
   <script src="./app.js"></script>
   <script src="./tabs.js"></script>
 </body>
