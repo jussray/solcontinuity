@@ -1,0 +1,12 @@
+{
+  "name": "sol-jussco-site",
+  "compatibility_date": "2026-10-16",
+  "preview_urls": false,
+  "assets": {
+    "directory": "./public",
+    "not_found_handling": "404-page"
+  },
+  "routes": [
+    { "pattern": "sol.jussco.company", "custom_domain": true }
+  ]
+}

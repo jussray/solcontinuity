@@ -1,0 +1,121 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SolContinuity: application-layer continuity</title>
+<meta name="description" content="SolContinuity keeps an application from silently trusting one route, operator, API, or recovery path. Open source and self-hostable.">
+<meta name="color-scheme" content="dark light">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Unbounded:wght@600;800&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="site.css">
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+
+<header class="top">
+  <a class="brand" href="#top">
+    <svg class="mark" viewBox="0 0 32 32" aria-hidden="true">
+      <defs>
+        <linearGradient id="mark-g" x1="0" x2="1" y1="0" y2="0">
+          <stop offset="0" stop-color="#8976ff"/>
+          <stop offset="1" stop-color="#42d6a4"/>
+        </linearGradient>
+      </defs>
+      <path d="M16 16C10 6 2 6 2 16s8 10 14 0 6-10 14 0-8 10-14 0z" fill="none" stroke="url(#mark-g)" stroke-width="2.6" stroke-linejoin="round"/>
+    </svg>
+    <span>SolContinuity</span>
+  </a>
+  <nav aria-label="Sections">
+    <a href="#routing">Routing</a>
+    <a href="#today">What runs today</a>
+    <a href="#limits">Not claimed</a>
+    <a href="#run">Run it</a>
+  </nav>
+</header>
+
+<main id="main">
+  <section class="hero" id="top" aria-labelledby="hero-h">
+    <h1 id="hero-h">Don&rsquo;t trust one route.</h1>
+    <p class="lede">SolContinuity keeps an application from silently trusting a single route, operator, hosted interface, API, or recovery path. It reads from several independent providers, keeps their disagreements as evidence, and fails over when one goes bad.</p>
+    <p class="scope">Solana is the first implemented adapter and its live proof environment. The core is platform-neutral.</p>
+    <div class="actions">
+      <a class="btn btn-primary" href="https://github.com/jussray/SolContinuity#javascript-examples">Run a quorum read</a>
+      <a class="btn" href="https://github.com/jussray/SolContinuity/blob/main/docs/threat-model.md">Read the threat model</a>
+    </div>
+  </section>
+
+  <section class="routing" id="routing" aria-labelledby="routing-h">
+    <h2 id="routing-h">How a read survives one bad route</h2>
+    <p class="section-lede">A request goes to several independently operated routes. Their answers are compared, not trusted by default.</p>
+    <ol class="flow">
+      <li class="stage stage-routes">
+        <h3>Routes</h3>
+        <ul class="route-list">
+          <li><span class="route-id">provider-a</span> independent operator</li>
+          <li><span class="route-id">provider-b</span> independent operator</li>
+          <li><span class="route-id">provider-c</span> independent operator</li>
+        </ul>
+        <p class="note">IDs match the provider entries in examples/continuity-manifest.json. This page shows no health or latency because it has no live feed.</p>
+      </li>
+      <li class="stage stage-hub">
+        <h3>Quorum</h3>
+        <p>Agreement is checked against <code>minimumRouteAgreement</code> in the manifest.</p>
+      </li>
+      <li class="stage stage-outcomes">
+        <h3>Outcomes</h3>
+        <ul class="outcome-list">
+          <li><strong>Agreed.</strong> Value returned with per-route evidence.</li>
+          <li><strong>Disagreed.</strong> Disagreement kept as evidence, not averaged away.</li>
+          <li><strong>Route failed.</strong> Failover to the next route, failure recorded.</li>
+          <li><strong>Exported.</strong> Portable evidence record.</li>
+        </ul>
+      </li>
+    </ol>
+  </section>
+
+  <section class="today" id="today" aria-labelledby="today-h">
+    <h2 id="today-h">What runs today</h2>
+    <ul class="grid-list">
+      <li>Platform-neutral continuity manifest, with legacy Solana compatibility</li>
+      <li>Strict multi-route JSON-RPC client with provider-aware quorum and failover</li>
+      <li>Per-route latency, value, operator, and error evidence</li>
+      <li>Deterministic continuity audit across routes, targets, recovery, and evidence</li>
+      <li>Solana adapter: blockhash health, pre-signed broadcast, independent confirmation on Devnet</li>
+      <li>Self-hosted Console with optional session authentication</li>
+    </ul>
+    <div class="state" role="status">
+      <p class="state-label">No live data on this page</p>
+      <p>This site is static. It shows no provider health, transaction results, or quorum outcomes. The Console reads evidence from a server you run yourself.</p>
+    </div>
+  </section>
+
+  <section class="limits" id="limits" aria-labelledby="limits-h">
+    <h2 id="limits-h">Not claimed yet</h2>
+    <p class="section-lede">Stated plainly so nobody has to infer it.</p>
+    <ul class="grid-list grid-list-muted">
+      <li>Universal HTTP continuity</li>
+      <li>Automatic EVM transaction semantics</li>
+      <li>Validator or consensus guarantees</li>
+      <li>Support for every chain</li>
+      <li>Proof that providers are honest, or that censorship is impossible</li>
+    </ul>
+    <p class="note">New adapters must keep the same evidence and recovery contracts before they count as supported.</p>
+  </section>
+
+  <section class="run" id="run" aria-labelledby="run-h">
+    <h2 id="run-h">Run it</h2>
+    <pre class="code"><code>npm ci --ignore-scripts --no-audit --no-fund
+npm run verify
+npm start</code></pre>
+    <p class="note">Then open the Console on 127.0.0.1:4173. Signed transactions are accepted only as pre-signed input; the tooling never loads private keys.</p>
+  </section>
+</main>
+
+<footer class="foot">
+  <p>Open source. Registry publishing, deployment, spending, live transaction tests, and merges are founder decisions.</p>
+  <p><a href="https://github.com/jussray/SolContinuity">Source on GitHub</a></p>
+</footer>
+</body>
+</html>

@@ -1,0 +1,13 @@
+/* SOL screens: crops of the approved mockup image, unaltered pixels.
+   Link hit areas are transparent overlays positioned in percent of the image. */
+html, body { margin: 0; background: #0a0820; }
+.screen { position: relative; width: fit-content; max-width: 100%; margin: 0 auto; }
+.screen img { display: block; width: auto; max-width: 100%; height: auto; }
+.hit { position: absolute; display: block; }
+.hit:focus-visible { outline: 2px solid #f2c97d; outline-offset: 2px; }
+.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.hit-1 { left: 74.228%; top: 2.338%; width: 15.168%; height: 4.038%; }
+.hit-2 { left: 26.577%; top: 37.726%; width: 22.282%; height: 4.357%; }
+.hit-3 { left: 51.141%; top: 37.726%; width: 22.416%; height: 4.357%; }
+.hit-4 { left: 60.215%; top: 86.610%; width: 11.828%; height: 2.657%; }
+.hit-5 { left: 47.619%; top: 74.176%; width: 25.541%; height: 2.125%; }
