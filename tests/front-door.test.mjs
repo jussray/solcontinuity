@@ -3,18 +3,34 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import worker from '../front-door/worker.mjs';
 const home = 'https://sol.foundercontrolroom.org';
-test('SOL is independently branded at root and tagged root', async () => {
+test('SOL front door serves the blueprint triptych landing at root', async () => {
   for(const url of [home+'/',home+'/?utm_source=preview',home+'/index.html']){
     const r=await worker.fetch(new Request(url));
     assert.equal(r.status,200);
-    assert.match(await r.text(), /SolContinuity: application-layer continuity/);
+    const body=await r.text();
+    assert.match(body, /Your future remembers/);
+    assert.match(body, /where you left off/);
     assert.match(r.headers.get('Content-Security-Policy'),/script-src 'none'/);
+    assert.match(r.headers.get('Content-Security-Policy'),/form-action 'none'/);
   }
 });
+test('SOL auth panels and evidence page are served as static previews', async () => {
+  const signin=await worker.fetch(new Request(home+'/signin.html'));
+  assert.equal(signin.status,200);
+  assert.match(await signin.text(), /Welcome Back/);
+  const signup=await worker.fetch(new Request(home+'/signup.html'));
+  assert.equal(signup.status,200);
+  assert.match(await signup.text(), /Create your account/);
+  const evidence=await worker.fetch(new Request(home+'/evidence.html'));
+  assert.equal(evidence.status,200);
+  assert.match(await evidence.text(), /SolContinuity: application-layer continuity/);
+});
 test('SOL CSS loads separately and invalid routes cannot expose FCR', async () => {
-  const css=await worker.fetch(new Request(home+'/site.css'));
-  assert.equal(css.status,200);
-  assert.match(css.headers.get('Content-Type'),/text\/css/);
+  for(const path of ['/sol.css','/site.css']){
+    const css=await worker.fetch(new Request(home+path));
+    assert.equal(css.status,200,path);
+    assert.match(css.headers.get('Content-Type'),/text\/css/);
+  }
   for(const path of ['/api/overview','/admin','/login','/dashboard','/api/chief/runtime-proof']){
     const r=await worker.fetch(new Request(home+path));
     assert.equal(r.status,404,path);
