@@ -58,6 +58,10 @@ export async function reconcileNotices(notices, { repo, readRun, readBranch }) {
     if (parsed) {
       try {
         const run = await readRun(repo, parsed.runId);
+        const headRepo = run?.head_repository?.full_name;
+        if (headRepo && headRepo.toLowerCase() !== repo.toLowerCase()) {
+          throw new Error('fork PR head is outside the authorized repository readback scope');
+        }
         const branch = typeof run?.head_branch === 'string' ? run.head_branch : '';
         if (!branch || branch.length > 180) throw new Error('run branch unavailable');
         const current = await readBranch(repo, branch);
