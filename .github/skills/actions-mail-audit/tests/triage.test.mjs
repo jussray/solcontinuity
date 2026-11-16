@@ -49,6 +49,23 @@ describe('actions-mail audit read-only input and exact-head contract', () => {
     const out = await reconcileNotices([{ kind: 'security', message_id: 'security-1', run_url: runUrl }], { repo, readRun: async () => ({ head_branch: 'main', head_sha: sha, status: 'completed', conclusion: 'success' }), readBranch: async () => sha });
     assert.equal(out[0].status, 'SECURITY_TRIAGE_UNVERIFIED');
   });
+  it('holds a fork-owned PR run instead of comparing the base repository branch', async () => {
+    let baseBranchReads = 0;
+    const out = await reconcileNotices([{ message_id: 'fork-notice', run_url: runUrl }], {
+      repo,
+      readRun: async () => ({
+        event: 'pull_request',
+        head_repository: { full_name: 'contributor/SolContinuity' },
+        head_branch: 'main',
+        head_sha: sha,
+        status: 'completed',
+        conclusion: 'failure',
+      }),
+      readBranch: async () => { baseBranchReads++; return newer; },
+    });
+    assert.equal(out[0].status, 'COVERAGE_BLOCKED');
+    assert.equal(baseBranchReads, 0);
+  });
   it('rejects unredacted mail content rather than silently discarding it', async () => {
     await assert.rejects(reconcileNotices([{ message_id: 'm1', body: 'not allowed in runtime', run_url: runUrl }], { repo, readRun: async () => ({ head_branch: 'main', head_sha: sha, status: 'completed', conclusion: 'failure' }), readBranch: async () => sha }), /disallowed fields/);
   });
