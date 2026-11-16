@@ -47,7 +47,7 @@ export async function reconcileNotices(notices, { repo, readRun, readBranch }) {
     const mailbox = typeof entry.mailbox === 'string' ? entry.mailbox.slice(0, 120) : '';
     const receivedAt = typeof entry.received_at === 'string' ? entry.received_at.slice(0, 40) : '';
     const labels = Array.isArray(entry.labels) ? entry.labels.filter(x => ['INBOX','SPAM','TRASH'].includes(x)) : [];
-    const key = parsed ? 'run:' + parsed.runId : 'notice:' + messageId;
+    const key = parsed ? 'run:' + kind + ':' + parsed.runId : 'notice:' + kind + ':' + messageId;
     if (seen.has(key)) continue;
     seen.add(key);
     const item = { schema: 'juss.actions-mail-audit@v1', repo, mailbox, message_id: messageId, received_at: receivedAt, labels, source_url: parsed?.url || null, run_id: parsed?.runId || null, status: 'UNKNOWN', head: null, current_branch_head: null, evidence: 'mail_is_a_signal_not_proof', event_fingerprint: '' };
