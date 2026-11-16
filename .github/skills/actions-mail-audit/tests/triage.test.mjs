@@ -31,6 +31,20 @@ describe('actions-mail audit read-only input and exact-head contract', () => {
     assert.equal(out[0].event_fingerprint.length, 64);
     assert.equal(JSON.stringify(out).includes('Bearer'), false);
   });
+  it('preserves a security notice even after an Actions notice for the same run', async () => {
+    const notices = [
+      { kind: 'actions', message_id: 'actions-1', run_url: runUrl },
+      { kind: 'security', message_id: 'security-1', run_url: runUrl },
+    ];
+    const out = await reconcileNotices(notices, {
+      repo,
+      readRun: async () => ({ head_branch: 'main', head_sha: sha, status: 'completed', conclusion: 'success' }),
+      readBranch: async () => sha,
+    });
+    assert.equal(out.length, 2);
+    assert.deepEqual(out.map(item => item.status), ['CURRENT_RUN_GREEN_ONLY', 'SECURITY_TRIAGE_UNVERIFIED']);
+    assert.notEqual(out[0].event_fingerprint, out[1].event_fingerprint);
+  });
   it('holds potential credential reports even if the Actions run succeeded', async () => {
     const out = await reconcileNotices([{ kind: 'security', message_id: 'security-1', run_url: runUrl }], { repo, readRun: async () => ({ head_branch: 'main', head_sha: sha, status: 'completed', conclusion: 'success' }), readBranch: async () => sha });
     assert.equal(out[0].status, 'SECURITY_TRIAGE_UNVERIFIED');
