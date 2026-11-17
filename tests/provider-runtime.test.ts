@@ -35,6 +35,23 @@ test("provider states never expose secret values", () => {
   assert.doesNotMatch(JSON.stringify(states), /secret/);
 });
 
+
+test("Muse stays absent when the model is missing despite a configured key", () => {
+  process.env.MODEL_API_KEY = "synthetic-muse-key";
+  delete process.env.SOL_MUSE_MODEL;
+  const muse = solProviderStates().muse;
+  assert.ok(muse);
+  assert.equal(muse.state, "ABSENT");
+});
+
+test("Muse stays absent when the requested model is not allow-listed", () => {
+  process.env.MODEL_API_KEY = "synthetic-muse-key";
+  process.env.SOL_MUSE_MODEL = "unapproved-model";
+  const muse = solProviderStates().muse;
+  assert.ok(muse);
+  assert.equal(muse.state, "ABSENT");
+});
+
 test("OpenAI invocation returns bounded evidence with no authority", async () => {
   process.env.OPENAI_API_KEY = "openai-key";
   const result = await invokeSolProvider({provider: "openai", prompt: "challenge continuity drift"}, async (url, init) => {

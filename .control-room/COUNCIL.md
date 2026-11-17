@@ -62,3 +62,7 @@ Each member distinguishes `VERIFIED`, `INFERRED`, `UNKNOWN`, and `BLOCKED`.
 Return one packet: `REALITY / COUNCIL / FIX / PROOF / RISK / ROLLBACK / NEXT GATE`.
 
 A green canonical verify, dashboard test, provider response, live-network observation, or Council vote cannot silently authorize production mutation or substitute for the other evidence layers.
+
+## Court
+
+For consequential continuity decisions, convene the architectural court in `.control-room/solcontinuity-court.contract.json` (`juss/solcontinuity-court@v1`): Continuity, Chain, and Surface councils under the Founder Council. No second authority plane. Founder rules; live-network evidence stays founder-gated.

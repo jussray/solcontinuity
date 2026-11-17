@@ -163,3 +163,26 @@ test('expired continuity never carries authority forward', () => {
   assert.ok(result.reasons.includes('cookie_expired'));
   assert.equal(result.continuityMayAuthorizeAction, false);
 });
+
+
+test('future-dated continuity cookie cannot be treated as current', () => {
+  const cookie = createCapabilityContinuityCookie(base, {
+    observedAt: '2026-09-03T20:00:00.000Z',
+    expiresAt: '2026-09-03T20:30:00.000Z',
+  });
+  const result = evaluateCapabilityContinuityCookie(cookie, base, '2026-09-03T19:59:59.999Z');
+  assert.equal(result.state, 'stale');
+  assert.ok(result.reasons.includes('cookie_not_yet_valid'));
+  assert.equal(result.continuityMayAuthorizeAction, false);
+});
+
+test('continuity expires at its exact expiry instant', () => {
+  const cookie = createCapabilityContinuityCookie(base, {
+    observedAt: '2026-09-03T20:00:00.000Z',
+    expiresAt: '2026-09-03T20:30:00.000Z',
+  });
+  const result = evaluateCapabilityContinuityCookie(cookie, base, '2026-09-03T20:30:00.000Z');
+  assert.equal(result.state, 'stale');
+  assert.ok(result.reasons.includes('cookie_expired'));
+  assert.equal(result.continuityMayAuthorizeAction, false);
+});

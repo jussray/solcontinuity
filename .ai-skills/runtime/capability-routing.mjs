@@ -234,10 +234,12 @@ export function evaluateCapabilityContinuityCookie(cookie, currentRouteState, no
 
   const nowMs = Date.parse(text(now));
   const expiresMs = Date.parse(text(cookie?.expiresAt));
-  if (!Number.isFinite(nowMs) || !Number.isFinite(expiresMs)) {
+  const observedMs = Date.parse(text(cookie?.observedAt));
+  if (!Number.isFinite(nowMs) || !Number.isFinite(expiresMs) || !Number.isFinite(observedMs) || expiresMs <= observedMs) {
     add('observation_time_invalid');
-  } else if (nowMs > expiresMs) {
-    add('cookie_expired');
+  } else {
+    if (nowMs < observedMs) add('cookie_not_yet_valid');
+    if (nowMs >= expiresMs) add('cookie_expired');
   }
 
   if (!reasons.includes('cookie_invalid') && !reasons.includes('current_route_invalid')) {

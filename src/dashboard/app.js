@@ -12,6 +12,7 @@ const overviewEvidence = document.getElementById("overview-evidence");
 const evidenceSummary = document.getElementById("evidence-summary");
 const evidenceHistory = document.getElementById("evidence-history");
 const proofGateSummary = document.getElementById("proof-gate-summary");
+let sessionEpoch = 0;
 
 const proofGateElements = {
   strictTypeScript: [document.getElementById("strict-typescript-gate"), document.getElementById("strict-typescript-state")],
@@ -155,9 +156,12 @@ function canUseApi() {
 
 async function apiRequest(path, options) {
   if (!canUseApi()) throw new Error("API unavailable in static artifact mode.");
+  const requestedEpoch = sessionEpoch;
   const response = await fetch(path, options);
   const payload = await response.json();
+  if (requestedEpoch !== sessionEpoch) throw new Error("Session changed. Try again after signing in.");
   if (!response.ok) {
+    if (response.status === 401) document.dispatchEvent(new Event("sol-session-required"));
     const error = new Error(payload.message || payload.error || `HTTP ${response.status}`);
     error.payload = payload;
     throw error;
@@ -256,6 +260,7 @@ function renderStaticEvidenceMode() {
 }
 
 async function loadEvidenceHistory() {
+  const requestEpoch = sessionEpoch;
   if (!canUseApi()) {
     renderStaticEvidenceMode();
     return;
@@ -285,6 +290,7 @@ async function loadEvidenceHistory() {
     }
     announcement.textContent = "Live evidence history refreshed.";
   } catch (error) {
+    if (requestEpoch !== sessionEpoch) return;
     evidenceSummary.textContent = `Evidence history unavailable: ${error instanceof Error ? error.message : String(error)}. No live-chain claim is being made.`;
     evidenceHistory.append(textElement("div", "evidence-empty", "The Console failed closed and preserved the truth boundary."));
     announcement.textContent = "Evidence history unavailable; no live claim was made.";
@@ -292,6 +298,7 @@ async function loadEvidenceHistory() {
 }
 
 async function refreshOverview() {
+  const requestEpoch = sessionEpoch;
   if (!canUseApi()) {
     apiStatus.textContent = "Offline";
     analyticsStatus.textContent = "Offline";
@@ -313,6 +320,7 @@ async function refreshOverview() {
     applyProofGates(payload.proofGates || {});
     announcement.textContent = "Backend evidence refreshed.";
   } catch (error) {
+    if (requestEpoch !== sessionEpoch) return;
     apiStatus.textContent = "Unavailable";
     analyticsStatus.textContent = "Unknown";
     evidenceMode.textContent = "Evidence mode: backend unavailable";
@@ -324,6 +332,7 @@ async function refreshOverview() {
 }
 
 async function runAudit() {
+  const requestEpoch = sessionEpoch;
   let manifest;
   try {
     manifest = JSON.parse(editor.value);
@@ -350,6 +359,7 @@ async function runAudit() {
     auditOutput.textContent = JSON.stringify(report, null, 2);
     announcement.textContent = `Audit complete. Score ${report.score}. Source ${report.source}.`;
   } catch (error) {
+    if (requestEpoch !== sessionEpoch) return;
     auditOutput.textContent = `BACKEND ERROR: ${error instanceof Error ? error.message : String(error)}`;
     announcement.textContent = "Audit backend failed; no offline result was substituted.";
   }
@@ -374,6 +384,7 @@ function renderProviderSamples() {
 }
 
 async function runProviderScore() {
+  const requestEpoch = sessionEpoch;
   if (!canUseApi()) {
     const report = localProviderScore(sampleProviders);
     providerOutput.textContent = JSON.stringify(report, null, 2);
@@ -391,6 +402,7 @@ async function runProviderScore() {
     providerOutput.textContent = JSON.stringify(report, null, 2);
     announcement.textContent = `Provider evidence scored ${report.score}. Source ${report.source}.`;
   } catch (error) {
+    if (requestEpoch !== sessionEpoch) return;
     providerOutput.textContent = `BACKEND ERROR: ${error instanceof Error ? error.message : String(error)}`;
     announcement.textContent = "Provider analytics failed; no offline score was substituted.";
   }
@@ -409,6 +421,26 @@ document.getElementById("refresh-evidence").addEventListener("click", async () =
   await Promise.all([refreshOverview(), loadEvidenceHistory()]);
 });
 document.getElementById("refresh-history").addEventListener("click", loadEvidenceHistory);
+function clearSessionResults() {
+  sessionEpoch += 1;
+  auditOutput.textContent = "Ready to audit.";
+  providerOutput.textContent = "Ready to score provider evidence.";
+  applyProofGates();
+  apiStatus.textContent = "Unavailable";
+  analyticsStatus.textContent = "Unknown";
+  evidenceMode.textContent = "Evidence mode: sign in required";
+  evidenceMode.classList.add("neutral");
+}
+document.addEventListener("sol-session-required", () => {
+  clearSessionResults();
+  overviewEvidence.textContent = "Sign in to load protected Console evidence.";
+  evidenceSummary.textContent = "Sign in to load protected evidence history.";
+  evidenceHistory.replaceChildren();
+});
+document.addEventListener("sol-session-changed", () => {
+  clearSessionResults();
+  void Promise.all([refreshOverview(), loadEvidenceHistory()]);
+});
 
 renderProviderSamples();
 resetManifest();

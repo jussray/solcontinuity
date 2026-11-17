@@ -127,7 +127,7 @@ curl -c cookies.txt -X POST http://127.0.0.1:4173/api/session/login \
 curl -b cookies.txt http://127.0.0.1:4173/api/overview
 ```
 
-`POST /api/session/login` sets a signed, `HttpOnly`, `SameSite=Strict` `sc_session` cookie (12-hour expiry); `POST /api/session/logout` clears it. The dashboard's own UI does not yet include a login form — this is a backend contract for operators who front the Console with their own auth flow, reverse proxy, or a future login screen.
+`POST /api/session/login` sets a signed, `HttpOnly`, `SameSite=Strict` `sc_session` cookie (12-hour expiry); `POST /api/session/logout` clears it. The Console includes sign-in when the server reports access protection is enabled and sign-out for confirmed sessions. It sends the operator token only to the same server, clears the input immediately, never stores tokens in browser storage, and never reads session cookies. Expired sessions return to sign-in. Static recovery mode has no sign-in; unprotected servers are labeled explicitly. This shared operator-token flow is not a multi-user customer account system.
 
 Cookies are signed with an HMAC secret: set `SOLCONTINUITY_COOKIE_SECRET` to a stable value so sessions and device ids survive process restarts (otherwise a random secret is generated per process start, invalidating existing cookies on every restart). Set `SOLCONTINUITY_COOKIE_SECURE=1` when the Console sits behind a TLS-terminating reverse proxy, to add the `Secure` cookie attribute.
 
