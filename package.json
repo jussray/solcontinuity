@@ -59,6 +59,6 @@
   "devDependencies": {
     "@solana/web3.js": "1.99.0",
     "@types/node": "26.6.5",
-    "typescript": "5.8.3"
+    "typescript": "7.0.2"
   }
 }
