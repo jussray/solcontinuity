@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { QuorumError } from "../src/core/errors.js";
+import { QuorumError, ResilienceError } from "../src/core/errors.js";
 import { MultiRpcClient } from "../src/core/multi-rpc-client.js";
 import { createMockRpcServer } from "../src/testing/failure-simulator.js";
 
@@ -159,4 +159,13 @@ test("transaction broadcast forwards the requested preflight commitment", async 
   assert.equal(config?.encoding, "base64");
   assert.equal(config?.skipPreflight, false);
   assert.equal(config?.preflightCommitment, "confirmed");
+});
+
+test("the RPC runtime refuses duplicate underlying URLs despite different route IDs and provider labels", () => {
+  assert.throws(() => new MultiRpcClient({
+    endpoints: [
+      { id: "route-a", provider: "one", url: "https://RPC.example.org:443/rpc" },
+      { id: "route-b", provider: "two", url: "https://rpc.example.org/rpc" }
+    ]
+  }), (error: unknown) => error instanceof ResilienceError && error.code === "DUPLICATE_ENDPOINT_URL");
 });
