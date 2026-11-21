@@ -47,6 +47,11 @@ function lifecycleStatus(dependency: ContinuityManifest["dependencies"][number])
 }
 
 export function auditManifest(manifest: ContinuityManifest, generatedAt = new Date()): ManifestAuditReport {
+  // Endpoint IDs and self-declared provider labels cannot create physical route diversity.
+  // Normalize URLs so equivalent endpoint spellings count as the same route.
+  const uniqueRouteUrls = new Set(manifest.routes.map((route) => {
+    try { return new URL(route.url).href; } catch { return route.url.trim(); }
+  }));
   const providers = manifest.routes.map((endpoint) => endpoint.provider ?? hostname(endpoint.url));
   const uniqueProviders = new Set(providers.map((provider) => provider.toLowerCase()));
   const requiredDependencies = manifest.dependencies.filter((dependency) => dependency.required);
@@ -67,6 +72,15 @@ export function auditManifest(manifest: ContinuityManifest, generatedAt = new Da
           "Insufficient route diversity",
           `Manifest declares ${manifest.routes.length} route(s).`,
           "Declare at least three independently operated routes for meaningful failover and comparison."
+        ),
+    uniqueRouteUrls.size === manifest.routes.length
+      ? pass()
+      : finding(
+          "duplicate-route-url",
+          "high",
+          "Duplicate continuity route URLs",
+          `Only ${uniqueRouteUrls.size} unique endpoint URL(s) among ${manifest.routes.length} configured routes.`,
+          "Use distinct independent endpoints. Different route IDs or claimed provider labels do not create route diversity."
         ),
     uniqueProviders.size >= 2
       ? pass()
@@ -94,6 +108,15 @@ export function auditManifest(manifest: ContinuityManifest, generatedAt = new Da
           "Verification quorum is impossible",
           `Agreement requires ${manifest.verification.minimumRouteAgreement}, but only ${manifest.routes.length} route(s) exist.`,
           "Lower the threshold or add independently operated routes."
+        ),
+    manifest.verification.minimumRouteAgreement <= uniqueRouteUrls.size
+      ? pass()
+      : finding(
+          "impossible-unique-route-agreement",
+          "critical",
+          "Configured quorum exceeds distinct endpoint URLs",
+          `Quorum requires ${manifest.verification.minimumRouteAgreement} routes, but only ${uniqueRouteUrls.size} unique endpoint URL(s) exist.`,
+          "Replace duplicated URLs with independent endpoints or lower the quorum requirement with an explicit risk review."
         ),
     manifest.frontend.recoveryUrl
       ? pass()
