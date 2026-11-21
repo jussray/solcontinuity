@@ -139,3 +139,33 @@ test("invalid manifest reports precise validation issues", () => {
     (error: unknown) => error instanceof ManifestValidationError && error.issues.length >= 5
   );
 });
+
+test("audit blocks fake route diversity when different IDs point to the same endpoint", () => {
+  const manifest = parseManifest({
+    ...validManifest,
+    rpcEndpoints: [
+      { id: "a", provider: "operator-a", url: "https://same.example.org/rpc" },
+      { id: "b", provider: "operator-b", url: "https://same.example.org/rpc" },
+      { id: "c", provider: "operator-c", url: "https://independent.example.org/rpc" }
+    ]
+  });
+  const report = auditManifest(manifest);
+  const duplicate = report.findings.find(item => item.id === "duplicate-route-url");
+  assert.ok(duplicate, "identical route URLs must not count as independent capacity");
+  assert.equal(duplicate.severity, "high");
+  assert.ok(report.score < 100);
+});
+
+test("audit rejects quorum relying on more unique routes than exist", () => {
+  const manifest = parseManifest({
+    ...validManifest,
+    rpcEndpoints: [
+      { id: "a", provider: "operator-a", url: "https://same.example.org/" },
+      { id: "b", provider: "operator-b", url: "https://same.example.org/" },
+      { id: "c", provider: "operator-c", url: "https://different.example.org/" }
+    ],
+    verification: { minimumRpcAgreement: 3, commitment: "confirmed", publishEvidence: true }
+  });
+  const report = auditManifest(manifest);
+  assert.ok(report.findings.some(item => item.id === "impossible-unique-route-agreement"));
+});
