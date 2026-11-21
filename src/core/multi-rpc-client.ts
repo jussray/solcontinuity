@@ -63,11 +63,21 @@ function ensureUniqueEndpoints(endpoints: readonly RpcEndpointConfig[]): void {
   }
 
   const ids = new Set<string>();
+  const urls = new Set<string>();
   for (const endpoint of endpoints) {
     if (ids.has(endpoint.id)) {
       throw new ResilienceError(`Duplicate RPC endpoint id: ${endpoint.id}`, "DUPLICATE_ENDPOINT_ID");
     }
+    // A second endpoint ID or provider label is not a second independent route.
+    // Normalize the URL, but never include sensitive URLs in error messages.
+    let urlIdentity: string;
+    try { urlIdentity = new URL(endpoint.url).href; }
+    catch { urlIdentity = endpoint.url.trim(); }
+    if (urls.has(urlIdentity)) {
+      throw new ResilienceError(`Duplicate RPC endpoint URL at id: ${endpoint.id}`, "DUPLICATE_ENDPOINT_URL");
+    }
     ids.add(endpoint.id);
+    urls.add(urlIdentity);
   }
 }
 
