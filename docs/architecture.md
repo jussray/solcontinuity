@@ -44,6 +44,19 @@ Legacy Solana fields (`network`, `programAddresses`, `rpcEndpoints`, and `minimu
 7. The API returns sanitized evidence to the console or integrations.
 8. Reports remain exportable so the hosted console is not the only source of truth.
 
+## Route identity and quorum integrity
+
+Distinct endpoint IDs and claimed provider labels do not prove independent infrastructure.
+The manifest audit flags duplicate normalized route URLs and any quorum larger than
+the count of unique URLs. The RPC client rejects duplicate normalized URLs at
+construction time with `DUPLICATE_ENDPOINT_URL`; failure messages omit the URLs
+because credentials may be embedded in them.
+
+Unique URLs are **necessary but not sufficient** for operational independence:
+operators can control several domains, routes can share upstream systems, and
+configured provider labels are assertions rather than authenticated operator proof.
+A production continuity claim still needs independent route/failure observations.
+
 ## Adapter rule
 
 A new platform is not called supported merely because generic JSON-RPC requests happen to work. A first-class adapter must define and test its own health semantics, write/broadcast behavior when applicable, independent confirmation rules, evidence shape, recovery path, and failure modes.
