@@ -2,9 +2,9 @@ name: ADRP draft validation
 on:
   push:
     branches: [feat/jsc-adrp-v1]
-    paths: ['discovery/**', '.github/workflows/jsc-adrp-draft.yml']
+    paths: ['discovery/**', '.github/workflows/jsc-adrp-draft.yml', 'front-door/worker.mjs', 'evidence.html', 'index.html', 'site.css', 'sol.css']
   pull_request:
-    paths: ['discovery/**', '.github/workflows/jsc-adrp-draft.yml']
+    paths: ['discovery/**', '.github/workflows/jsc-adrp-draft.yml', 'front-door/worker.mjs', 'evidence.html', 'index.html', 'site.css', 'sol.css']
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
