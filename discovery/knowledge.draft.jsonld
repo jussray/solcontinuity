@@ -3,27 +3,27 @@
   "@graph": [
     {
       "@type": "Organization",
-      "@id": "https://jussco.company/#organization",
+      "@id": "https://www.jussco.company/#organization",
       "name": "Juss & Co",
-      "url": "https://jussco.company"
+      "url": "https://www.jussco.company/"
     },
     {
       "@type": "WebSite",
       "@id": "https://sol.foundercontrolroom.org/#website",
       "name": "SolContinuity",
-      "url": "https://sol.foundercontrolroom.org",
+      "url": "https://sol.foundercontrolroom.org/",
       "publisher": {
-        "@id": "https://jussco.company/#organization"
+        "@id": "https://www.jussco.company/#organization"
       }
     },
     {
       "@type": "SoftwareApplication",
       "@id": "https://sol.foundercontrolroom.org/#application",
       "name": "SolContinuity",
-      "url": "https://sol.foundercontrolroom.org",
+      "url": "https://sol.foundercontrolroom.org/evidence.html",
       "description": "Application-layer infrastructure continuity and resilience tooling",
       "publisher": {
-        "@id": "https://jussco.company/#organization"
+        "@id": "https://www.jussco.company/#organization"
       }
     }
   ]

@@ -1,0 +1,9 @@
+{
+  "project": "solcontinuity",
+  "status": "draft",
+  "intendedUseCases": [
+    "Provider-aware JSON-RPC quorum and failover",
+    "Continuity audits and recovery evidence"
+  ],
+  "verifiedCapabilities": []
+}
