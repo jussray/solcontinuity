@@ -1,0 +1,15 @@
+{
+  "protocol": "JSC-ADRP",
+  "version": "1.0.0-draft",
+  "project": "solcontinuity",
+  "name": "SolContinuity",
+  "url": "https://sol.foundercontrolroom.org/evidence.html",
+  "description": "Application-layer infrastructure continuity and resilience tooling",
+  "useCases": [
+    "Provider-aware JSON-RPC quorum and failover",
+    "Continuity audits and recovery evidence"
+  ],
+  "publicationStatus": "draft",
+  "verifiedCapabilities": [],
+  "evidence": []
+}
