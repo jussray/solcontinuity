@@ -16,6 +16,8 @@ triggers:
   - ULTRATHINK
   - OODA
   - REDTEAM
+  - DEVIL
+  - GODMODE
 ---
 
 # /goalfix — Seek, Build, Fix, Verify
@@ -58,6 +60,26 @@ Do not delete, broaden scope, suppress errors, expose Sauce Guard material,
 or claim done without evidence.
 Report Reality / Bottleneck / Fix / Proof / Risk / Rollback / Adaptive Signal / Next Gate.
 ```
+
+## ULTRATHINK / DEVIL / GODMODE invocation contract
+
+When the founder invokes `ULTRATHINK`, `DEVIL`, or `GODMODE`, route into this
+same canonical Goalfix lane rather than creating a parallel workflow:
+
+- **ULTRATHINK** expands the option space, reconciles constraints, and selects
+  the highest-leverage evidence-backed outcome.
+- **DEVIL** runs both adversarial passes: first challenge whether the change
+  should exist, then attack the selected implementation for failure modes.
+- **GODMODE** means maximum available rigor and end-to-end execution within
+  the exact repository, tool, budget, privacy, and authority boundaries. It
+  never grants extra permissions or bypasses a founder gate.
+
+For a nontrivial task, continue through every authorized implementation and
+verification step until the requested outcome is proven or a concrete external,
+authority, safety, or infrastructure blocker is reached. Do not return a plan
+as the final deliverable when the next safe implementation step is available.
+Automatable checks and evidence collection stay with the agent; founder-only
+decisions remain with the founder.
 
 ## Full founder reasoning stack
 
