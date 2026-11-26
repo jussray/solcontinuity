@@ -1,0 +1,250 @@
+{
+  "schemaVersion": "1.0",
+  "registryVersion": "2.0.0",
+  "appId": "solcontinuity",
+  "registry": {
+    "repository": "jussray/promptos",
+    "manifestPath": "manifests/apps/solcontinuity.json",
+    "revision": "667ba485a051417f4ca6d00810b9732d08c095e0",
+    "sourceRef": "feat/app-skill-registry-v2-20261125",
+    "status": "candidate"
+  },
+  "source": {
+    "repository": "jussray/ULTRATHINK-",
+    "revision": "4e650bdb2ca3a372300ca99bbf8af18c75a1d5ca",
+    "sourceRef": "feat/portable-skill-packages-20261125",
+    "status": "candidate"
+  },
+  "skills": {
+    "shared": [
+      {
+        "id": "goalfix",
+        "sourceRepository": "jussray/ULTRATHINK-",
+        "sourcePath": "skills/goalfix/SKILL.md",
+        "sourceRevision": "4e650bdb2ca3a372300ca99bbf8af18c75a1d5ca",
+        "sourceRef": "feat/portable-skill-packages-20261125",
+        "status": "source-path-verified",
+        "lifecycle": "candidate",
+        "mode": "reference-only",
+        "authority": "advisory",
+        "owner": "ultrathink",
+        "compatibility": {
+          "apps": [
+            "*"
+          ],
+          "surfaces": [
+            "*"
+          ]
+        }
+      },
+      {
+        "id": "ultrathink",
+        "sourceRepository": "jussray/ULTRATHINK-",
+        "sourcePath": "skills/ultrathink/SKILL.md",
+        "sourceRevision": "4e650bdb2ca3a372300ca99bbf8af18c75a1d5ca",
+        "sourceRef": "feat/portable-skill-packages-20261125",
+        "status": "source-path-verified",
+        "lifecycle": "candidate",
+        "mode": "reference-only",
+        "authority": "advisory",
+        "owner": "ultrathink",
+        "compatibility": {
+          "apps": [
+            "*"
+          ],
+          "surfaces": [
+            "*"
+          ]
+        }
+      },
+      {
+        "id": "redteam",
+        "sourceRepository": "jussray/ULTRATHINK-",
+        "sourcePath": "skills/redteam/SKILL.md",
+        "sourceRevision": "4e650bdb2ca3a372300ca99bbf8af18c75a1d5ca",
+        "sourceRef": "feat/portable-skill-packages-20261125",
+        "status": "source-path-verified",
+        "lifecycle": "candidate",
+        "mode": "reference-only",
+        "authority": "advisory",
+        "owner": "ultrathink",
+        "compatibility": {
+          "apps": [
+            "*"
+          ],
+          "surfaces": [
+            "*"
+          ]
+        }
+      },
+      {
+        "id": "proofmode",
+        "sourceRepository": "jussray/ULTRATHINK-",
+        "sourcePath": "skills/proofmode/SKILL.md",
+        "sourceRevision": "4e650bdb2ca3a372300ca99bbf8af18c75a1d5ca",
+        "sourceRef": "feat/portable-skill-packages-20261125",
+        "status": "source-path-verified",
+        "lifecycle": "candidate",
+        "mode": "reference-only",
+        "authority": "advisory",
+        "owner": "ultrathink",
+        "compatibility": {
+          "apps": [
+            "*"
+          ],
+          "surfaces": [
+            "*"
+          ]
+        }
+      }
+    ],
+    "owned": [
+      {
+        "id": "continuity-state",
+        "status": "proposed-awaiting-source-audit",
+        "lifecycle": "proposed",
+        "mode": "proposal",
+        "authority": "advisory",
+        "owner": "solcontinuity",
+        "compatibility": {
+          "apps": [
+            "solcontinuity"
+          ],
+          "surfaces": [
+            "web",
+            "service",
+            "api"
+          ]
+        }
+      },
+      {
+        "id": "recovery-planning",
+        "status": "proposed-awaiting-source-audit",
+        "lifecycle": "proposed",
+        "mode": "proposal",
+        "authority": "advisory",
+        "owner": "solcontinuity",
+        "compatibility": {
+          "apps": [
+            "solcontinuity"
+          ],
+          "surfaces": [
+            "web",
+            "service",
+            "api"
+          ]
+        }
+      },
+      {
+        "id": "drift-detection",
+        "status": "proposed-awaiting-source-audit",
+        "lifecycle": "proposed",
+        "mode": "proposal",
+        "authority": "advisory",
+        "owner": "solcontinuity",
+        "compatibility": {
+          "apps": [
+            "solcontinuity"
+          ],
+          "surfaces": [
+            "web",
+            "service",
+            "api"
+          ]
+        }
+      },
+      {
+        "id": "resilience-evaluation",
+        "status": "proposed-awaiting-source-audit",
+        "lifecycle": "proposed",
+        "mode": "proposal",
+        "authority": "advisory",
+        "owner": "solcontinuity",
+        "compatibility": {
+          "apps": [
+            "solcontinuity"
+          ],
+          "surfaces": [
+            "web",
+            "service",
+            "api"
+          ]
+        }
+      }
+    ],
+    "ownedSkillsStatus": "proposed-awaiting-source-audit"
+  },
+  "plugins": [
+    {
+      "id": "github",
+      "provider": "GitHub",
+      "purpose": "Repository and exact-head evidence inspection.",
+      "mode": "operator-tooling",
+      "status": "declared",
+      "connectionState": "runtime-discovery-required",
+      "authority": "none",
+      "compatibleApps": [
+        "solcontinuity"
+      ],
+      "capabilities": [
+        "repository.read",
+        "branch.read",
+        "pull-request.read",
+        "checks.read"
+      ],
+      "writePolicy": "explicit-action-approval-required",
+      "secretsPolicy": "never-store-in-manifest"
+    },
+    {
+      "id": "cloudflare",
+      "provider": "Cloudflare",
+      "purpose": "Deployment and runtime metadata inspection.",
+      "mode": "operator-tooling",
+      "status": "declared",
+      "connectionState": "runtime-discovery-required",
+      "authority": "none",
+      "compatibleApps": [
+        "solcontinuity"
+      ],
+      "capabilities": [
+        "worker.read",
+        "deployment.read",
+        "runtime.read"
+      ],
+      "writePolicy": "explicit-action-approval-required",
+      "secretsPolicy": "never-store-in-manifest"
+    },
+    {
+      "id": "npm-scan",
+      "provider": "NPMScan",
+      "purpose": "Dependency vulnerability and package provenance inspection.",
+      "mode": "operator-tooling",
+      "status": "declared",
+      "connectionState": "runtime-discovery-required",
+      "authority": "none",
+      "compatibleApps": [
+        "solcontinuity"
+      ],
+      "capabilities": [
+        "dependency.vulnerability.read",
+        "package.provenance.read"
+      ],
+      "writePolicy": "explicit-action-approval-required",
+      "secretsPolicy": "never-store-in-manifest"
+    }
+  ],
+  "compatibility": {
+    "surfaces": [
+      "web",
+      "service",
+      "api"
+    ],
+    "requiresPlaywrightForUi": true,
+    "observedSkillDirectories": [
+      ".agents/skills/"
+    ]
+  },
+  "authority": "catalog-and-compatibility-only",
+  "installationState": "not-asserted",
+  "executionAuthority": "none"
+}
